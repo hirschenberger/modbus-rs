@@ -12,3 +12,6 @@ description = "Pure Rust modbus implementation"
 [dependencies]
 enum_primitive = "0.1.0"
 num = "0.1.27"
+rustc-serialize = "0.3.16"
+bincode = "0.4.0"
+byteorder = "0.3.13"
