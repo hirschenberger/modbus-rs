@@ -2,6 +2,11 @@
 name = "modbus"
 version = "0.1.0"
 authors = ["Falco Hirschenberger <hirschen@itwm.fhg.de>"]
+repository = "https://github.com/hirschenberger/modbus.git"
+homepage = "https://github.com/hirschenberger/modbus.git"
+license = "MIT"
+readme = "README.md"
+description = "Pure Rust modbus implementation"
 
 [dependencies]
 enum_primitive = "0.1.0"
