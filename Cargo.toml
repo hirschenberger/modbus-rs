@@ -1,0 +1,8 @@
+[package]
+name = "modbus"
+version = "0.1.0"
+authors = ["Falco Hirschenberger <hirschen@itwm.fhg.de>"]
+
+[dependencies]
+enum_primitive = "0.1.0"
+num = "0.1.27"
