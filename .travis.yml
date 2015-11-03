@@ -1,11 +1,12 @@
+sudo: false
 language: rust
 rust:
-  - stable
-  - beta
-  - nightly
+- stable
+- beta
+- nightly
 matrix:
   allow_failures:
-    - rust: nightly
+  - rust: nightly
 before_script:
 - |
   pip install 'travis-cargo<0.2' --user &&
@@ -14,8 +15,8 @@ script:
 - |
   travis-cargo build &&
   travis-cargo test &&
-#  travis-cargo bench &&
   travis-cargo --only stable doc
+#  travis-cargo bench &&
 #addons:
 #  apt:
 #    packages:
