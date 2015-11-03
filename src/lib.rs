@@ -2,6 +2,6 @@
 extern crate enum_primitive;
 extern crate num;
 
-mod tcp {
-    mod protocol;
+pub mod tcp {
+    pub mod protocol;
 }

@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Falco Hirschenberger <hirschen@itwm.fhg.de>"]
 repository = "https://github.com/hirschenberger/modbus.git"
 homepage = "https://github.com/hirschenberger/modbus.git"
+documentation = "https://hirschenberger.github.io/modbus"
 license = "MIT"
 readme = "README.md"
 description = "Pure Rust modbus implementation"

@@ -5,22 +5,28 @@ const PROTOCOL_MODBUS_TCP: u16 = 0x0000;
 
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
-enum FunctionCode {
+/// Modbus FunctionCodes
+pub enum FunctionCode {
     ReadCoils               = 0x01,
     ReadDiscreteInputs      = 0x02
 }
 }
 
-struct Ctx {
+/// Context object which holds state for all modbus operations.
+pub struct Ctx {
     tid: u16
 }
 
 impl Ctx {
-    fn new() -> Ctx {
+    /// Create a new context `Ctx` context object.
+    pub fn new() -> Ctx {
         Ctx { tid: 0 }
     }
 
-    fn new_tid(self: &mut Self) -> u16 {
+    /// Create a new transaction Id, incrementing the previous one.
+    ///
+    /// The Id is wrapping around if the Id reaches `u16::MAX`.
+    pub fn new_tid(self: &mut Self) -> u16 {
         // wrap around or increment
         if self.tid  < u16::MAX {
             self.tid += 1u16;
@@ -31,7 +37,7 @@ impl Ctx {
     }
 }
 
-struct Header {
+pub struct Header {
     tid: u16,
     pid: u16,
     len: u16,
@@ -40,7 +46,7 @@ struct Header {
 }
 
 impl Header {
-    fn new(ctx: &mut Ctx, uid: u8, fun: FunctionCode) -> Header {
+    pub fn new(ctx: &mut Ctx, uid: u8, fun: FunctionCode) -> Header {
         Header {
             tid: ctx.new_tid(),
             pid: PROTOCOL_MODBUS_TCP,
