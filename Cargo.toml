@@ -8,6 +8,7 @@ documentation = "https://hirschenberger.github.io/modbus"
 license = "MIT"
 readme = "README.md"
 description = "Pure Rust modbus implementation"
+keywords = ["modbus", "hardware"]
 
 [dependencies]
 enum_primitive = "0.1.0"

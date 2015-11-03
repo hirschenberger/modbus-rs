@@ -12,7 +12,7 @@ use bincode::SizeLimit;
 use {FunctionCode, ModbusResult, ExceptionCode, BitValue};
 
 const PROTOCOL_MODBUS_TCP: u16 = 0x0000;
-pub const MODBUS_TCP_DEFAULT_PORT: u16 = 502;
+const MODBUS_TCP_DEFAULT_PORT: u16 = 502;
 
 /// Context object which holds state for all modbus operations.
 pub struct Ctx {
@@ -112,10 +112,11 @@ pub fn write_single_coil(ctx: &mut Ctx, addr: u16, v: BitValue) -> ModbusResult
     write_single(ctx, FunctionCode::WriteSingleCoil, addr, v as u16)
 }
 
-fn start_dummy_server() -> Child {
+#[cfg(test)]
+fn start_dummy_server(port: &str) -> Child {
     Command::new("./test/diagslave")
                      .arg("-m").arg("tcp")
-                     .arg("-p").arg("2222")
+                     .arg("-p").arg(port)
                      .stdout(Stdio::null())
                      .spawn()
                      .unwrap_or_else(|e| { panic!("failed to execute process: {}", e) })
@@ -123,7 +124,7 @@ fn start_dummy_server() -> Child {
 
 #[test]
 fn test_packet_tid_creation() {
-    let mut server = start_dummy_server();
+    let mut server = start_dummy_server("2222");
     thread::sleep_ms(500);
     let mut ctx = Ctx::new_with_port("127.0.0.1", 2222).unwrap();
     let mut hd = Packet::new(&mut ctx, FunctionCode::ReadCoils, 0);
@@ -138,9 +139,9 @@ fn test_packet_tid_creation() {
 
 #[test]
 fn test_write_single_coil() {
-    let mut server = start_dummy_server();
+    let mut server = start_dummy_server("2223");
     thread::sleep_ms(500);
-    let mut ctx = Ctx::new_with_port("127.0.0.1", 2222).unwrap();
+    let mut ctx = Ctx::new_with_port("127.0.0.1", 2223).unwrap();
     assert!(write_single_coil(&mut ctx, 0, BitValue::On).is_ok());
     server.kill();
 }

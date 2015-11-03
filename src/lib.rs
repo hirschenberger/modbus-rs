@@ -48,7 +48,7 @@ pub type ModbusResult = std::result::Result<ExceptionCode, ExceptionCode>;
 
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
-/// Modbus function codes
+/// Single bit status values
 pub enum BitValue {
     On  = 0xff00,
     Off = 0x0000
