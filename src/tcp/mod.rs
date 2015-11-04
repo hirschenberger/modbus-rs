@@ -113,18 +113,28 @@ pub fn write_single_coil(ctx: &mut Ctx, addr: u16, v: BitValue) -> ModbusResult
 }
 
 #[cfg(test)]
-fn start_dummy_server(port: &str) -> Child {
-    Command::new("./test/diagslave")
-                     .arg("-m").arg("tcp")
-                     .arg("-p").arg(port)
-                     .stdout(Stdio::null())
-                     .spawn()
-                     .unwrap_or_else(|e| { panic!("failed to execute process: {}", e) })
+fn start_dummy_server(port: &str) -> Result<ChildKiller> {
+    Ok(ChildKiller(Command::new("./test/diagslave")
+                        .arg("-m").arg("tcp")
+                        .arg("-p").arg(port)
+                        .stdout(Stdio::null())
+                        .spawn()
+                        .unwrap_or_else(|e| { panic!("failed to execute process: {}", e) })))
+}
+
+#[cfg(test)]
+struct ChildKiller(Child);
+
+#[cfg(test)]
+impl Drop for ChildKiller {
+    fn drop(&mut self) {
+        self.0.kill().unwrap();
+    }
 }
 
 #[test]
 fn test_packet_tid_creation() {
-    let mut server = start_dummy_server("2222");
+    let _s = start_dummy_server("2222");
     thread::sleep_ms(500);
     let mut ctx = Ctx::new_with_port("127.0.0.1", 2222).unwrap();
     let mut hd = Packet::new(&mut ctx, FunctionCode::ReadCoils, 0);
@@ -134,14 +144,12 @@ fn test_packet_tid_creation() {
     ctx.tid = u16::MAX;
     hd = Packet::new(&mut ctx, FunctionCode::ReadCoils, 0);
     assert!(hd.tid == 0);
-    server.kill();
 }
 
 #[test]
 fn test_write_single_coil() {
-    let mut server = start_dummy_server("2223");
+    let _s = start_dummy_server("2223");
     thread::sleep_ms(500);
     let mut ctx = Ctx::new_with_port("127.0.0.1", 2223).unwrap();
     assert!(write_single_coil(&mut ctx, 0, BitValue::On).is_ok());
-    server.kill();
 }
