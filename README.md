@@ -1,6 +1,7 @@
 # Rust Modbus
 [![Build Status](https://travis-ci.org/hirschenberger/modbus-rs.svg)](https://travis-ci.org/hirschenberger/modbus-rs)
 [![License](http://img.shields.io/:license-MIT-blue.svg)](http://doge.mit-license.org)
+[![](http://meritbadge.herokuapp.com/modbus)](https://crates.io/crates/modbus)
 
 Modbus implementation in pure Rust.
 
@@ -9,7 +10,7 @@ Add `modbus` to your `Cargo.toml` dependencies:
 
 ```toml
 [dependencies]
-modbus = "0.1.0"
+modbus = "0.0.2"
 ```
 
 Import the `modbus` crate and use it's functions:
