@@ -1,5 +1,5 @@
 # Rust Modbus
-[![Build Status](https://travis-ci.org/hirschenberger/modbus.svg)](https://travis-ci.org/hirschenberger/modbus)
+[![Build Status](https://travis-ci.org/hirschenberger/modbus-rs.svg)](https://travis-ci.org/hirschenberger/modbus-rs)
 
 Modbus implementation in pure Rust.
 
