@@ -1,9 +1,15 @@
 sudo: false
 language: rust
 rust:
-- stable
-- beta
-- nightly
+  - stable
+  - beta
+  - nightly
+addons:
+  apt:
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
 matrix:
   allow_failures:
   - rust: nightly
