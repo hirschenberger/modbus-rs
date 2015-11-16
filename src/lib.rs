@@ -5,6 +5,9 @@ extern crate rustc_serialize;
 extern crate bincode;
 extern crate byteorder;
 
+use std::io;
+use bincode::rustc_serialize::{DecodingError, EncodingError};
+
 pub mod tcp;
 
 type Address  = u16;
@@ -59,12 +62,46 @@ pub enum ModbusExceptionCode {
 }
 }
 
-pub enum IoError {
-    ModbusExceptionCode(ModbusExceptionCode),
-    Communication
+#[derive(Debug)]
+pub enum ModbusError {
+    ModbusException(ModbusExceptionCode),
+    Io(io::Error),
+    InvalidResponse,
+    InvalidData
 }
 
-pub type ModbusResult<T> = std::result::Result<T, IoError>;
+impl From<ModbusExceptionCode> for ModbusError {
+    fn from(err: ModbusExceptionCode) -> ModbusError {
+        ModbusError::ModbusException(err)
+    }
+}
+
+impl From<io::Error> for ModbusError {
+    fn from(err: io::Error) -> ModbusError {
+        ModbusError::Io(err)
+    }
+}
+
+impl From<DecodingError> for ModbusError {
+    fn from(_err: DecodingError) -> ModbusError {
+        ModbusError::InvalidData
+    }
+}
+
+impl From<EncodingError> for ModbusError {
+    fn from(_err: EncodingError) -> ModbusError {
+        ModbusError::InvalidData
+    }
+}
+
+impl From<byteorder::Error> for ModbusError {
+    fn from(_err: byteorder::Error) -> ModbusError {
+        ModbusError::InvalidData
+    }
+}
+
+
+pub type ModbusResult<T> = std::result::Result<T, ModbusError>;
 
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]

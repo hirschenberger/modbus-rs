@@ -10,7 +10,7 @@ use bincode::SizeLimit;
 
 use enum_primitive::FromPrimitive;
 
-use {Function, ModbusResult, ModbusExceptionCode, IoError, BitValue};
+use {Function, ModbusResult, ModbusExceptionCode, ModbusError, BitValue};
 
 const MODBUS_PROTOCOL_TCP: u16 = 0x0000;
 const MODBUS_TCP_DEFAULT_PORT: u16 = 502;
@@ -108,41 +108,41 @@ fn write_single(ctx: &mut Ctx, fun: Function) -> ModbusResult<()>
     };
 
     let mut buff = vec![0; MODBUS_HEADER_SIZE];  // Header gets filled in later
-    buff.write_u8(fun.code()).unwrap();
-    buff.write_u16::<BigEndian>(addr).unwrap();
-    buff.write_u16::<BigEndian>(value).unwrap();
+    try!(buff.write_u8(fun.code()));
+    try!(buff.write_u16::<BigEndian>(addr));
+    try!(buff.write_u16::<BigEndian>(value));
     write(ctx, &mut buff)
 }
 
 fn write(ctx: &mut Ctx, buff: &mut Vec<u8>) -> ModbusResult<()> {
     if buff.len() > MODBUS_MAX_WRITE_COUNT {
-        return Err(IoError::ModbusExceptionCode(ModbusExceptionCode::IllegalDataValue));
+        return Err(ModbusError::ModbusException(ModbusExceptionCode::IllegalDataValue));
     }
     let header = Header::new(ctx, (buff.len() - MODBUS_HEADER_SIZE + 1) as u16);
-    let head_buff = encode(&header, SizeLimit::Infinite).unwrap();
+    let head_buff = try!(encode(&header, SizeLimit::Infinite));
     {
         let mut start = Cursor::new(buff.borrow_mut());
-        start.write(&head_buff[..]).unwrap();
+        try!(start.write(&head_buff[..]));
     }
     match ctx.stream.write_all(&buff[..]) {
         Ok(_s) => {
                 let reply = &mut [0; 12];
                 match ctx.stream.read(reply) {
                     Ok(_s) => {
-                        let resp_hd = decode(&reply[..MODBUS_HEADER_SIZE]).unwrap();
-                        validate_response_header(&header, &resp_hd).and(
-                            validate_response_code(&buff, reply))
+                        let resp_hd = try!(decode(&reply[..MODBUS_HEADER_SIZE]));
+                        try!(validate_response_header(&header, &resp_hd));
+                        validate_response_code(&buff, reply)
                     }
-                    Err(_e) => Err(IoError::Communication)
+                    Err(e) => Err(ModbusError::Io(e))
                 }
         }
-        Err(_e) => Err(IoError::Communication)
+        Err(e) => Err(ModbusError::Io(e))
     }
 }
 
 fn validate_response_header(req: &Header, resp: &Header) -> ModbusResult<()> {
     if req.tid != resp.tid || resp.pid != MODBUS_PROTOCOL_TCP {
-        Err(IoError::Communication)
+        Err(ModbusError::InvalidResponse)
     }
     else {
         Ok(())
@@ -152,10 +152,10 @@ fn validate_response_header(req: &Header, resp: &Header) -> ModbusResult<()> {
 fn validate_response_code(req: &[u8], resp: &[u8]) -> ModbusResult<()> {
     if req[7] + 0x80  == resp[7] {
         let code = ModbusExceptionCode::from_u8(resp[8]).unwrap();
-        Err(IoError::ModbusExceptionCode(code))
+        Err(ModbusError::ModbusException(code))
     }
     else if req[7] != resp[7] {
-        Err(IoError::Communication)
+        Err(ModbusError::InvalidResponse)
     }
     else {
         Ok(())
