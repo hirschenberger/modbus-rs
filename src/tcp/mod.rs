@@ -4,7 +4,7 @@ use std::io;
 use std::io::{Write, Read, Cursor};
 use std::time::Duration;
 use std::borrow::BorrowMut;
-use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
+use byteorder::{BigEndian, WriteBytesExt};
 use bincode::rustc_serialize::{encode, decode};
 use bincode::SizeLimit;
 
@@ -257,14 +257,15 @@ fn unpack_bits(bytes: &[u8], count: u16) -> Vec<BitValue> {
 #[cfg(test)]
 fn start_dummy_server(port: &str) -> ChildKiller {
     use std::process::{Command, Stdio};
-    use std::thread::sleep_ms;
+    use std::thread::sleep;
+    use std::time::Duration;
     let ck = ChildKiller(Command::new("./test/diagslave")
                         .arg("-m").arg("tcp")
                         .arg("-p").arg(port)
                         .stdout(Stdio::null())
                         .spawn()
                         .unwrap_or_else(|e| { panic!("failed to execute process: {}", e) }));
-    sleep_ms(500);
+    sleep(Duration::from_millis(500));
     ck
 }
 
@@ -320,4 +321,7 @@ fn test_read_coils() {
     assert!(write_single_coil(&mut ctx, 3, BitValue::On).is_ok());
     assert!(read_coils(&mut ctx, 0, 5).unwrap() ==
             vec![BitValue::Off, BitValue::On, BitValue::Off, BitValue::On, BitValue::Off]);
+    assert!(read_coils(&mut ctx, 1, 5).unwrap() ==
+            vec![BitValue::On, BitValue::Off, BitValue::On, BitValue::Off, BitValue::Off]);
+
 }
