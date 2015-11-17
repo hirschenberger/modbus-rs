@@ -103,11 +103,19 @@ impl From<byteorder::Error> for ModbusError {
 
 pub type ModbusResult<T> = std::result::Result<T, ModbusError>;
 
-enum_from_primitive! {
-#[derive(Debug, PartialEq)]
+
 /// Single bit status values
+#[derive(Debug, PartialEq)]
 pub enum BitValue {
-    On  = 0xff00,
-    Off = 0x0000
+    On,
+    Off
 }
+
+impl BitValue {
+    fn code(&self) -> u16 {
+        match *self {
+            BitValue::On  => 0xff00,
+            BitValue::Off => 0x0000
+        }
+    }
 }

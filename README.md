@@ -1,8 +1,9 @@
 # Rust Modbus
 [![Build Status](https://travis-ci.org/hirschenberger/modbus-rs.svg)](https://travis-ci.org/hirschenberger/modbus-rs)
 [![Coverage Status](https://coveralls.io/repos/hirschenberger/modbus-rs/badge.svg?branch=master&service=github)](https://coveralls.io/github/hirschenberger/modbus-rs?branch=master)
-[![License](http://img.shields.io/:license-MIT-blue.svg)](http://doge.mit-license.org)
 [![](http://meritbadge.herokuapp.com/modbus)](https://crates.io/crates/modbus)
+[![License](http://img.shields.io/:license-MIT-blue.svg)](http://doge.mit-license.org)
+
 
 Modbus implementation in pure Rust.
 

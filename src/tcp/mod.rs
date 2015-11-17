@@ -82,16 +82,81 @@ impl Header {
         Header {
             tid: ctx.new_tid(),
             pid: MODBUS_PROTOCOL_TCP,
-            len: len,
+            len: len - MODBUS_HEADER_SIZE as u16,
             uid: ctx.uid
         }
     }
 }
 
+pub fn read_coils(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>>
+{
+    let bytes = try!(read(ctx, Function::ReadCoils(addr, count)));
+    let res = unpack_bits(&bytes, count);
+    Ok(res)
+}
+
+pub fn read_discrete_inputs(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>>
+{
+    let bytes = try!(read(ctx, Function::ReadDiscreteInputs(addr, count)));
+    let res = unpack_bits(&bytes, count);
+    Ok(res)
+}
+
+pub fn read_holding_registers(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<u16>>
+{
+    let bytes = try!(read(ctx, Function::ReadHoldingRegisters(addr, count)));
+    let res: Vec<u16> = bytes.iter().map(|&v| v as u16).collect();
+    Ok(res)
+}
+
+pub fn read_input_registers(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<u16>>
+{
+    let bytes = try!(read(ctx, Function::ReadInputRegisters(addr, count)));
+    let res: Vec<u16> = bytes.iter().map(|&v| v as u16).collect();
+    Ok(res)
+}
+
+fn read(ctx: &mut Ctx, fun: Function) -> ModbusResult<Vec<u8>>
+{
+    let packed_size = |v: u16| {v/8 + if v%8 > 0 {1} else {0}};
+    let (addr, count, expected_bytes) = match fun {
+            Function::ReadCoils(a, c)            => (a, c, packed_size(c) as usize),
+            Function::ReadDiscreteInputs(a, c)   => (a, c, packed_size(c) as usize),
+            Function::ReadHoldingRegisters(a, c) => (a, c, 2*c as usize),
+            Function::ReadInputRegisters(a, c)   => (a, c, 2*c as usize),
+            _ => panic!("Unexpected modbus function")
+    };
+
+    if count < 1 || count as usize > MODBUS_MAX_READ_COUNT {
+        return Err(ModbusError::InvalidData);
+    }
+
+    let header = Header::new(ctx, MODBUS_HEADER_SIZE as u16 + 6u16);
+    let mut buff = try!(encode(&header, SizeLimit::Infinite));
+    try!(buff.write_u8(fun.code()));
+    try!(buff.write_u16::<BigEndian>(addr));
+    try!(buff.write_u16::<BigEndian>(count));
+
+    match ctx.stream.write_all(&buff[..]) {
+        Ok(_s) => {
+                let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
+                match ctx.stream.read(&mut reply) {
+                    Ok(_s) => {
+                        let resp_hd = try!(decode(&reply[..MODBUS_HEADER_SIZE]));
+                        try!(validate_response_header(&header, &resp_hd));
+                        try!(validate_response_code(&buff, &reply[..]));
+                        get_reply_data(&reply, expected_bytes)
+                    }
+                    Err(e) => Err(ModbusError::Io(e))
+                }
+        }
+        Err(e) => Err(ModbusError::Io(e))
+    }
+}
 
 pub fn write_single_coil(ctx: &mut Ctx, addr: u16, value: BitValue) -> ModbusResult<()>
 {
-    write_single(ctx, Function::WriteSingleCoil(addr, value as u16))
+    write_single(ctx, Function::WriteSingleCoil(addr, value.code()))
 }
 
 pub fn write_single_register(ctx: &mut Ctx, addr: u16, value: u16) -> ModbusResult<()>
@@ -115,10 +180,10 @@ fn write_single(ctx: &mut Ctx, fun: Function) -> ModbusResult<()>
 }
 
 fn write(ctx: &mut Ctx, buff: &mut Vec<u8>) -> ModbusResult<()> {
-    if buff.len() > MODBUS_MAX_WRITE_COUNT {
-        return Err(ModbusError::ModbusException(ModbusExceptionCode::IllegalDataValue));
+    if buff.len() < 1 || buff.len() > MODBUS_MAX_WRITE_COUNT {
+        return Err(ModbusError::InvalidData);
     }
-    let header = Header::new(ctx, (buff.len() - MODBUS_HEADER_SIZE + 1) as u16);
+    let header = Header::new(ctx, buff.len() as u16 + 1u16);
     let head_buff = try!(encode(&header, SizeLimit::Infinite));
     {
         let mut start = Cursor::new(buff.borrow_mut());
@@ -160,6 +225,33 @@ fn validate_response_code(req: &[u8], resp: &[u8]) -> ModbusResult<()> {
     else {
         Ok(())
     }
+}
+
+fn get_reply_data(reply: &Vec<u8>, expected_bytes: usize) -> ModbusResult<Vec<u8>> {
+    if reply[8] as usize != expected_bytes ||
+       reply.len() != MODBUS_HEADER_SIZE + expected_bytes + 2
+    {
+        Err(ModbusError::InvalidData)
+    }
+    else {
+
+        let mut d = Vec::new();
+        d.extend(reply[MODBUS_HEADER_SIZE+2..].iter());
+        Ok(d)
+    }
+}
+
+fn unpack_bits(bytes: &[u8], count: u16) -> Vec<BitValue> {
+    let mut res = Vec::with_capacity(count as usize);
+    for i in 0..count {
+        if (bytes[(i/8u16) as usize] >> i%8) & 0x1 > 0 {
+            res.push(BitValue::On);
+        }
+        else {
+            res.push(BitValue::Off);
+        }
+    }
+    res
 }
 
 #[cfg(test)]
@@ -217,4 +309,15 @@ fn test_write_single_register() {
     for i in 0..10 {
         assert!(write_single_register(&mut ctx, i, i).is_ok());
     }
+}
+
+#[test]
+fn test_read_coils() {
+    let _s = start_dummy_server("2225");
+    let mut ctx = Ctx::new_with_port("127.0.0.1", 2225).unwrap();
+
+    assert!(write_single_coil(&mut ctx, 1, BitValue::On).is_ok());
+    assert!(write_single_coil(&mut ctx, 3, BitValue::On).is_ok());
+    assert!(read_coils(&mut ctx, 0, 5).unwrap() ==
+            vec![BitValue::Off, BitValue::On, BitValue::Off, BitValue::On, BitValue::Off]);
 }
