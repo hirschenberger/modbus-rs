@@ -219,7 +219,7 @@ fn validate_response_code(req: &[u8], resp: &[u8]) -> ModbusResult<()> {
     }
 }
 
-fn get_reply_data(reply: &Vec<u8>, expected_bytes: usize) -> ModbusResult<Vec<u8>> {
+fn get_reply_data(reply: &[u8], expected_bytes: usize) -> ModbusResult<Vec<u8>> {
     if reply[8] as usize != expected_bytes ||
        reply.len() != MODBUS_HEADER_SIZE + expected_bytes + 2
     {
@@ -236,7 +236,7 @@ fn get_reply_data(reply: &Vec<u8>, expected_bytes: usize) -> ModbusResult<Vec<u8
 fn unpack_bits(bytes: &[u8], count: u16) -> Vec<BitValue> {
     let mut res = Vec::with_capacity(count as usize);
     for i in 0..count {
-        if (bytes[(i/8u16) as usize] >> i%8) & 0b1 > 0 {
+        if (bytes[(i/8u16) as usize] >> (i%8)) & 0b1 > 0 {
             res.push(BitValue::On);
         }
         else {

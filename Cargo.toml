@@ -16,6 +16,10 @@ num = "0.1.27"
 rustc-serialize = "0.3.16"
 bincode = "0.4.0"
 byteorder = "0.4.2"
+clippy = {version = "*", optional = true}
 
 [dev-dependencies]
 lazy_static = "0.1.15"
+
+[features]
+default=[]
