@@ -1,7 +1,6 @@
-use std::u16;
-use std::net::{TcpStream, Shutdown};
 use std::io;
 use std::io::{Write, Read, Cursor};
+use std::net::{TcpStream, Shutdown};
 use std::time::Duration;
 use std::borrow::BorrowMut;
 use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
@@ -52,12 +51,7 @@ impl Ctx {
     ///
     /// The Id is wrapping around if the Id reaches `u16::MAX`.
     fn new_tid(&mut self) -> u16 {
-        // wrap around or increment
-        if self.tid  < u16::MAX {
-            self.tid += 1u16;
-        } else {
-            self.tid = 0u16;
-        }
+        self.tid = self.tid.wrapping_add(1);
         self.tid
     }
 }
@@ -105,28 +99,13 @@ pub fn read_discrete_inputs(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResul
 pub fn read_holding_registers(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<u16>>
 {
     let bytes = try!(read(ctx, Function::ReadHoldingRegisters(addr, count)));
-    let size = bytes.len();
-
-    // check if we can create u16s from bytes by packing two u8s together
-    if size % 2 != 0 {
-        return Err(ModbusError::InvalidData);
-    }
-
-    let mut res = vec!();
-    let mut rdr = Cursor::new(bytes);
-
-    for _ in 0..size {
-        res.push(try!(rdr.read_u16::<BigEndian>()));
-    }
-
-    Ok(res)
+    pack_bytes(&bytes[..])
 }
 
 pub fn read_input_registers(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<u16>>
 {
     let bytes = try!(read(ctx, Function::ReadInputRegisters(addr, count)));
-    let res: Vec<u16> = bytes.iter().map(|&v| v as u16).collect();
-    Ok(res)
+    pack_bytes(&bytes[..])
 }
 
 fn read(ctx: &mut Ctx, fun: Function) -> ModbusResult<Vec<u8>>
@@ -257,7 +236,7 @@ fn get_reply_data(reply: &Vec<u8>, expected_bytes: usize) -> ModbusResult<Vec<u8
 fn unpack_bits(bytes: &[u8], count: u16) -> Vec<BitValue> {
     let mut res = Vec::with_capacity(count as usize);
     for i in 0..count {
-        if (bytes[(i/8u16) as usize] >> i%8) & 0x1 > 0 {
+        if (bytes[(i/8u16) as usize] >> i%8) & 0b1 > 0 {
             res.push(BitValue::On);
         }
         else {
@@ -267,114 +246,47 @@ fn unpack_bits(bytes: &[u8], count: u16) -> Vec<BitValue> {
     res
 }
 
+fn pack_bytes(bytes: &[u8]) -> ModbusResult<Vec<u16>> {
+    let size = bytes.len();
+    // check if we can create u16s from bytes by packing two u8s together without rest
+    if size % 2 != 0 {
+        return Err(ModbusError::InvalidData);
+    }
+
+    let mut res = vec!();
+    let mut rdr = Cursor::new(bytes);
+    for _ in 0..size/2 {
+        res.push(try!(rdr.read_u16::<BigEndian>()));
+    }
+    Ok(res)
+}
+
 #[cfg(test)]
 mod tests {
-    use std::u16;
-    use std::process::Child;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use super::super::{Function, ModbusResult, ModbusExceptionCode, ModbusError, BitValue};
-    use super::{Ctx, read_coils, read_discrete_inputs, read_holding_registers,
-                write_single_coil, write_single_register, Header};
+    use super::{unpack_bits, pack_bytes};
+    use super::super::*;
 
-    // global unique portnumber between all test threads
-    lazy_static!{ static ref PORT: AtomicUsize = AtomicUsize::new(22222); }
-
-    struct ChildKiller(Child);
-
-    #[cfg(test)]
-    impl Drop for ChildKiller {
-        fn drop(&mut self) {
-            self.0.kill().unwrap();
-        }
-    }
-
-    fn start_dummy_server() -> (ChildKiller, u16) {
-        use std::process::{Command, Stdio};
-        use std::thread::sleep;
-        use std::time::Duration;
-
-        // get and increment global port number for current test
-        let port = PORT.fetch_add(1, Ordering::SeqCst);
-        let ck = ChildKiller(Command::new("./test/diagslave")
-                            .arg("-m").arg("tcp")
-                            .arg("-p").arg(port.to_string())
-                            .stdout(Stdio::null())
-                            .spawn()
-                            .unwrap_or_else(|e| { panic!("failed to execute process: {}", e) }));
-        sleep(Duration::from_millis(500));
-        (ck, port as u16)
+    #[test]
+    fn test_unpack_bits() {
+        assert_eq!(unpack_bits(&[], 0), vec![]);
+        assert_eq!(unpack_bits(&[0, 0], 0), vec![]);
+        assert_eq!(unpack_bits(&[0b1], 1), vec![BitValue::On]);
+        assert_eq!(unpack_bits(&[0b01], 2), vec![BitValue::On, BitValue::Off]);
+        assert_eq!(unpack_bits(&[0b10], 2), vec![BitValue::Off, BitValue::On]);
+        assert_eq!(unpack_bits(&[0b101], 3), vec![BitValue::On, BitValue::Off, BitValue::On]);
+        assert_eq!(unpack_bits(&[0xff, 0b11], 10), vec![BitValue::On; 10]);
     }
 
     #[test]
-    fn test_packet_tid_creation() {
-        let (_s, port) = start_dummy_server();
-        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
-        let mut hd = Header::new(&mut ctx, 10);
-        assert!(hd.tid == 1u16);
-        hd = Header::new(&mut ctx, 10);
-        assert!(hd.tid == 2u16);
-        ctx.tid = u16::MAX;
-        hd = Header::new(&mut ctx, 10);
-        assert!(hd.tid == 0);
-    }
-
-    #[test]
-    fn test_write_single_coil() {
-        let (_s, port) = start_dummy_server();
-        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
-        assert!(write_single_coil(&mut ctx, 0, BitValue::On).is_ok());
-    }
-
-    #[test]
-    fn test_read_coils() {
-        let (_s, port) = start_dummy_server();
-        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
-        assert!(read_coils(&mut ctx, 0, 5).unwrap().len() == 5);
-        assert!(read_coils(&mut ctx, 0, 5).unwrap().iter().all(|c| *c == BitValue::Off));
-    }
-
-    #[test]
-    fn test_read_discrete_inputs() {
-        let (_s, port) = start_dummy_server();
-        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
-        assert!(read_discrete_inputs(&mut ctx, 0, 5).unwrap().len() == 5);
-        assert!(read_discrete_inputs(&mut ctx, 0, 5).unwrap().iter().all(|c| *c == BitValue::Off));
-    }
-
-    #[test]
-    fn test_read_holding_registers() {
-        let (_s, port) = start_dummy_server();
-        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
-        assert_eq!(read_holding_registers(&mut ctx, 0, 5).unwrap().len(), 5);
-        assert!(read_holding_registers(&mut ctx, 0, 5).unwrap().iter().all(|c| *c == 0));
-    }
-
-    #[test]
-    fn test_write_single_register() {
-        let (_s, port) = start_dummy_server();
-        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
-        assert!(write_single_register(&mut ctx, 0, 1).is_ok());
-    }
-
-
-    #[test]
-    fn test_read_write_coils() {
-        let (_s, port) = start_dummy_server();
-        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
-
-        assert!(write_single_coil(&mut ctx, 1, BitValue::On).is_ok());
-        assert!(write_single_coil(&mut ctx, 3, BitValue::On).is_ok());
-        assert!(read_coils(&mut ctx, 0, 5).unwrap() ==
-                vec![BitValue::Off, BitValue::On, BitValue::Off, BitValue::On, BitValue::Off]);
-        assert!(read_coils(&mut ctx, 1, 5).unwrap() ==
-                vec![BitValue::On, BitValue::Off, BitValue::On, BitValue::Off, BitValue::Off]);
-        assert!(write_single_coil(&mut ctx, 10, BitValue::On).is_ok());
-        assert!(write_single_coil(&mut ctx, 11, BitValue::On).is_ok());
-        assert!(read_coils(&mut ctx, 9, 4).unwrap() ==
-                vec![BitValue::Off, BitValue::On, BitValue::On, BitValue::Off]);
-        assert!(write_single_coil(&mut ctx, 10, BitValue::Off).is_ok());
-        assert!(write_single_coil(&mut ctx, 11, BitValue::Off).is_ok());
-        assert!(read_coils(&mut ctx, 9, 4).unwrap() ==
-                vec![BitValue::Off, BitValue::Off, BitValue::Off, BitValue::Off]);
+    fn test_pack_bytes() {
+        assert_eq!(pack_bytes(&[]).unwrap(), vec![]);
+        assert_eq!(pack_bytes(&[0, 0]).unwrap(), vec![0]);
+        assert_eq!(pack_bytes(&[0, 1]).unwrap(), vec![1]);
+        assert_eq!(pack_bytes(&[1, 0]).unwrap(), vec![256]);
+        assert_eq!(pack_bytes(&[1, 1]).unwrap(), vec![257]);
+        assert_eq!(pack_bytes(&[0, 1, 0, 2]).unwrap(), vec![1, 2]);
+        assert_eq!(pack_bytes(&[1, 1, 1, 2]).unwrap(), vec![257, 258]);
+        assert!(pack_bytes(&[1]).is_err());
+        assert!(pack_bytes(&[1, 2, 3]).is_err());
     }
 }

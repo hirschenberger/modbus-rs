@@ -5,10 +5,6 @@ extern crate rustc_serialize;
 extern crate bincode;
 extern crate byteorder;
 
-#[cfg(test)]
-#[macro_use]
-extern crate lazy_static;
-
 use std::io;
 use bincode::rustc_serialize::{DecodingError, EncodingError};
 
@@ -109,7 +105,7 @@ pub type ModbusResult<T> = std::result::Result<T, ModbusError>;
 
 
 /// Single bit status values
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BitValue {
     On,
     Off
