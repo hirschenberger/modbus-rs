@@ -21,7 +21,7 @@ const MODBUS_MAX_WRITE_COUNT: usize = 0x79;
 pub struct Ctx {
     tid: u16,
     uid: u8,
-    stream: TcpStream
+    stream: TcpStream,
 }
 
 impl Ctx {
@@ -39,11 +39,15 @@ impl Ctx {
                 let t = Duration::from_secs(5);
                 try!(s.set_read_timeout(Some(t)));
                 try!(s.set_write_timeout(Some(t)));
-//                try!(s.set_nodelay(true));
-//                try!(s.set_keepalive(None));
-                Ok(Ctx { tid: 0, uid: 1, stream: s })
+                //                try!(s.set_nodelay(true));
+                //                try!(s.set_keepalive(None));
+                Ok(Ctx {
+                    tid: 0,
+                    uid: 1,
+                    stream: s,
+                })
             }
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     }
 
@@ -68,7 +72,7 @@ struct Header {
     tid: u16,
     pid: u16,
     len: u16,
-    uid: u8
+    uid: u8,
 }
 
 impl Header {
@@ -77,46 +81,48 @@ impl Header {
             tid: ctx.new_tid(),
             pid: MODBUS_PROTOCOL_TCP,
             len: len - MODBUS_HEADER_SIZE as u16,
-            uid: ctx.uid
+            uid: ctx.uid,
         }
     }
 }
 
-pub fn read_coils(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>>
-{
+pub fn read_coils(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>> {
     let bytes = try!(read(ctx, Function::ReadCoils(addr, count)));
     let res = unpack_bits(&bytes, count);
     Ok(res)
 }
 
-pub fn read_discrete_inputs(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>>
-{
+pub fn read_discrete_inputs(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>> {
     let bytes = try!(read(ctx, Function::ReadDiscreteInputs(addr, count)));
     let res = unpack_bits(&bytes, count);
     Ok(res)
 }
 
-pub fn read_holding_registers(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<u16>>
-{
+pub fn read_holding_registers(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<u16>> {
     let bytes = try!(read(ctx, Function::ReadHoldingRegisters(addr, count)));
     pack_bytes(&bytes[..])
 }
 
-pub fn read_input_registers(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<u16>>
-{
+pub fn read_input_registers(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<u16>> {
     let bytes = try!(read(ctx, Function::ReadInputRegisters(addr, count)));
     pack_bytes(&bytes[..])
 }
 
-fn read(ctx: &mut Ctx, fun: Function) -> ModbusResult<Vec<u8>>
-{
-    let packed_size = |v: u16| {v/8 + if v%8 > 0 {1} else {0}};
+fn read(ctx: &mut Ctx, fun: Function) -> ModbusResult<Vec<u8>> {
+    let packed_size = |v: u16| {
+        v / 8 +
+        if v % 8 > 0 {
+            1
+        } else {
+            0
+        }
+    };
     let (addr, count, expected_bytes) = match fun {
-            Function::ReadCoils(a, c)            => (a, c, packed_size(c) as usize),
-            Function::ReadDiscreteInputs(a, c)   => (a, c, packed_size(c) as usize),
-            Function::ReadHoldingRegisters(a, c) => (a, c, 2*c as usize),
-            Function::ReadInputRegisters(a, c)   => (a, c, 2*c as usize),
-            _ => panic!("Unexpected modbus function")
+        Function::ReadCoils(a, c) => (a, c, packed_size(c) as usize),
+        Function::ReadDiscreteInputs(a, c) => (a, c, packed_size(c) as usize),
+        Function::ReadHoldingRegisters(a, c) => (a, c, 2 * c as usize),
+        Function::ReadInputRegisters(a, c) => (a, c, 2 * c as usize),
+        _ => panic!("Unexpected modbus function"),
     };
 
     if count < 1 || count as usize > MODBUS_MAX_READ_COUNT {
@@ -131,37 +137,34 @@ fn read(ctx: &mut Ctx, fun: Function) -> ModbusResult<Vec<u8>>
 
     match ctx.stream.write_all(&buff[..]) {
         Ok(_s) => {
-                let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
-                match ctx.stream.read(&mut reply) {
-                    Ok(_s) => {
-                        let resp_hd = try!(decode(&reply[..MODBUS_HEADER_SIZE]));
-                        try!(validate_response_header(&header, &resp_hd));
-                        try!(validate_response_code(&buff, &reply[..]));
-                        get_reply_data(&reply, expected_bytes)
-                    }
-                    Err(e) => Err(ModbusError::Io(e))
+            let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
+            match ctx.stream.read(&mut reply) {
+                Ok(_s) => {
+                    let resp_hd = try!(decode(&reply[..MODBUS_HEADER_SIZE]));
+                    try!(validate_response_header(&header, &resp_hd));
+                    try!(validate_response_code(&buff, &reply[..]));
+                    get_reply_data(&reply, expected_bytes)
                 }
+                Err(e) => Err(ModbusError::Io(e)),
+            }
         }
-        Err(e) => Err(ModbusError::Io(e))
+        Err(e) => Err(ModbusError::Io(e)),
     }
 }
 
-pub fn write_single_coil(ctx: &mut Ctx, addr: u16, value: BitValue) -> ModbusResult<()>
-{
+pub fn write_single_coil(ctx: &mut Ctx, addr: u16, value: BitValue) -> ModbusResult<()> {
     write_single(ctx, Function::WriteSingleCoil(addr, value.code()))
 }
 
-pub fn write_single_register(ctx: &mut Ctx, addr: u16, value: u16) -> ModbusResult<()>
-{
+pub fn write_single_register(ctx: &mut Ctx, addr: u16, value: u16) -> ModbusResult<()> {
     write_single(ctx, Function::WriteSingleRegister(addr, value))
 }
 
-fn write_single(ctx: &mut Ctx, fun: Function) -> ModbusResult<()>
-{
+fn write_single(ctx: &mut Ctx, fun: Function) -> ModbusResult<()> {
     let (addr, value) = match fun {
-        Function::WriteSingleCoil(a, v)     => (a, v),
+        Function::WriteSingleCoil(a, v) => (a, v),
         Function::WriteSingleRegister(a, v) => (a, v),
-        _ => panic!("Unexpected modbus function")
+        _ => panic!("Unexpected modbus function"),
     };
 
     let mut buff = vec![0; MODBUS_HEADER_SIZE];  // Header gets filled in later
@@ -183,52 +186,47 @@ fn write(ctx: &mut Ctx, buff: &mut Vec<u8>) -> ModbusResult<()> {
     }
     match ctx.stream.write_all(&buff[..]) {
         Ok(_s) => {
-                let reply = &mut [0; 12];
-                match ctx.stream.read(reply) {
-                    Ok(_s) => {
-                        let resp_hd = try!(decode(&reply[..MODBUS_HEADER_SIZE]));
-                        try!(validate_response_header(&header, &resp_hd));
-                        validate_response_code(&buff, reply)
-                    }
-                    Err(e) => Err(ModbusError::Io(e))
+            let reply = &mut [0; 12];
+            match ctx.stream.read(reply) {
+                Ok(_s) => {
+                    let resp_hd = try!(decode(&reply[..MODBUS_HEADER_SIZE]));
+                    try!(validate_response_header(&header, &resp_hd));
+                    validate_response_code(&buff, reply)
                 }
+                Err(e) => Err(ModbusError::Io(e)),
+            }
         }
-        Err(e) => Err(ModbusError::Io(e))
+        Err(e) => Err(ModbusError::Io(e)),
     }
 }
 
 fn validate_response_header(req: &Header, resp: &Header) -> ModbusResult<()> {
     if req.tid != resp.tid || resp.pid != MODBUS_PROTOCOL_TCP {
         Err(ModbusError::InvalidResponse)
-    }
-    else {
+    } else {
         Ok(())
     }
 }
 
 fn validate_response_code(req: &[u8], resp: &[u8]) -> ModbusResult<()> {
-    if req[7] + 0x80  == resp[7] {
+    if req[7] + 0x80 == resp[7] {
         let code = ModbusExceptionCode::from_u8(resp[8]).unwrap();
         Err(ModbusError::ModbusException(code))
-    }
-    else if req[7] != resp[7] {
+    } else if req[7] != resp[7] {
         Err(ModbusError::InvalidResponse)
-    }
-    else {
+    } else {
         Ok(())
     }
 }
 
 fn get_reply_data(reply: &[u8], expected_bytes: usize) -> ModbusResult<Vec<u8>> {
     if reply[8] as usize != expected_bytes ||
-       reply.len() != MODBUS_HEADER_SIZE + expected_bytes + 2
-    {
+       reply.len() != MODBUS_HEADER_SIZE + expected_bytes + 2 {
         Err(ModbusError::InvalidData)
-    }
-    else {
+    } else {
 
         let mut d = Vec::new();
-        d.extend(reply[MODBUS_HEADER_SIZE+2..].iter());
+        d.extend(reply[MODBUS_HEADER_SIZE + 2..].iter());
         Ok(d)
     }
 }
@@ -236,10 +234,9 @@ fn get_reply_data(reply: &[u8], expected_bytes: usize) -> ModbusResult<Vec<u8>> 
 fn unpack_bits(bytes: &[u8], count: u16) -> Vec<BitValue> {
     let mut res = Vec::with_capacity(count as usize);
     for i in 0..count {
-        if (bytes[(i/8u16) as usize] >> (i%8)) & 0b1 > 0 {
+        if (bytes[(i / 8u16) as usize] >> (i % 8)) & 0b1 > 0 {
             res.push(BitValue::On);
-        }
-        else {
+        } else {
             res.push(BitValue::Off);
         }
     }
@@ -253,9 +250,9 @@ fn pack_bytes(bytes: &[u8]) -> ModbusResult<Vec<u16>> {
         return Err(ModbusError::InvalidData);
     }
 
-    let mut res = vec!();
+    let mut res = vec![];
     let mut rdr = Cursor::new(bytes);
-    for _ in 0..size/2 {
+    for _ in 0..size / 2 {
         res.push(try!(rdr.read_u16::<BigEndian>()));
     }
     Ok(res)
@@ -273,7 +270,8 @@ mod tests {
         assert_eq!(unpack_bits(&[0b1], 1), vec![BitValue::On]);
         assert_eq!(unpack_bits(&[0b01], 2), vec![BitValue::On, BitValue::Off]);
         assert_eq!(unpack_bits(&[0b10], 2), vec![BitValue::Off, BitValue::On]);
-        assert_eq!(unpack_bits(&[0b101], 3), vec![BitValue::On, BitValue::Off, BitValue::On]);
+        assert_eq!(unpack_bits(&[0b101], 3),
+                   vec![BitValue::On, BitValue::Off, BitValue::On]);
         assert_eq!(unpack_bits(&[0xff, 0b11], 10), vec![BitValue::On; 10]);
     }
 
