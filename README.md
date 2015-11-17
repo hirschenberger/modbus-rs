@@ -12,13 +12,25 @@ Add `modbus` to your `Cargo.toml` dependencies:
 
 ```toml
 [dependencies]
-modbus = "0.0.2"
+modbus = "0.0.3"
 ```
 
 Import the `modbus` crate and use it's functions:
 
 ```rust
 extern crate modbus;
+
+use modbus::{BitValue};
+use modbus::tcp::{Ctx, write_single_coil, read_coils};
+
+let mut ctx = Ctx::new("192.168.0.10");
+
+write_single_coil(&mut ctx, 1, BitValue::On).unwrap();
+write_single_coil(&mut ctx, 3, BitValue::On).unwrap();
+
+let res = read_coils(&mut ctx, 0, 5).unwrap();
+
+// res ==  vec![BitValue::Off, BitValue::On, BitValue::Off, BitValue::On, BitValue::Off]);
 ```
 See the [documentation](http://hirschenberger.github.io/modbus-rs/modbus/index.html) for usage examples and further reference.
 
