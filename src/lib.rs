@@ -5,6 +5,10 @@ extern crate rustc_serialize;
 extern crate bincode;
 extern crate byteorder;
 
+#[cfg(test)]
+#[macro_use]
+extern crate lazy_static;
+
 use std::io;
 use bincode::rustc_serialize::{DecodingError, EncodingError};
 

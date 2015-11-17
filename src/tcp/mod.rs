@@ -4,7 +4,7 @@ use std::io;
 use std::io::{Write, Read, Cursor};
 use std::time::Duration;
 use std::borrow::BorrowMut;
-use byteorder::{BigEndian, WriteBytesExt};
+use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
 use bincode::rustc_serialize::{encode, decode};
 use bincode::SizeLimit;
 
@@ -105,7 +105,20 @@ pub fn read_discrete_inputs(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResul
 pub fn read_holding_registers(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<u16>>
 {
     let bytes = try!(read(ctx, Function::ReadHoldingRegisters(addr, count)));
-    let res: Vec<u16> = bytes.iter().map(|&v| v as u16).collect();
+    let size = bytes.len();
+
+    // check if we can create u16s from bytes by packing two u8s together
+    if size % 2 != 0 {
+        return Err(ModbusError::InvalidData);
+    }
+
+    let mut res = vec!();
+    let mut rdr = Cursor::new(bytes);
+
+    for _ in 0..size {
+        res.push(try!(rdr.read_u16::<BigEndian>()));
+    }
+
     Ok(res)
 }
 
@@ -255,73 +268,113 @@ fn unpack_bits(bytes: &[u8], count: u16) -> Vec<BitValue> {
 }
 
 #[cfg(test)]
-fn start_dummy_server(port: &str) -> ChildKiller {
-    use std::process::{Command, Stdio};
-    use std::thread::sleep;
-    use std::time::Duration;
-    let ck = ChildKiller(Command::new("./test/diagslave")
-                        .arg("-m").arg("tcp")
-                        .arg("-p").arg(port)
-                        .stdout(Stdio::null())
-                        .spawn()
-                        .unwrap_or_else(|e| { panic!("failed to execute process: {}", e) }));
-    sleep(Duration::from_millis(500));
-    ck
-}
+mod tests {
+    use std::u16;
+    use std::process::Child;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use super::super::{Function, ModbusResult, ModbusExceptionCode, ModbusError, BitValue};
+    use super::{Ctx, read_coils, read_discrete_inputs, read_holding_registers,
+                write_single_coil, write_single_register, Header};
 
-#[cfg(test)]
-use std::process::Child;
-#[cfg(test)]
-struct ChildKiller(Child);
+    // global unique portnumber between all test threads
+    lazy_static!{ static ref PORT: AtomicUsize = AtomicUsize::new(22222); }
 
-#[cfg(test)]
-impl Drop for ChildKiller {
-    fn drop(&mut self) {
-        self.0.kill().unwrap();
+    struct ChildKiller(Child);
+
+    #[cfg(test)]
+    impl Drop for ChildKiller {
+        fn drop(&mut self) {
+            self.0.kill().unwrap();
+        }
     }
-}
 
-#[test]
-fn test_packet_tid_creation() {
-    let _s = start_dummy_server("2222");
-    let mut ctx = Ctx::new_with_port("127.0.0.1", 2222).unwrap();
-    let mut hd = Header::new(&mut ctx, 10);
-    assert!(hd.tid == 1u16);
-    hd = Header::new(&mut ctx, 10);
-    assert!(hd.tid == 2u16);
-    ctx.tid = u16::MAX;
-    hd = Header::new(&mut ctx, 10);
-    assert!(hd.tid == 0);
-}
+    fn start_dummy_server() -> (ChildKiller, u16) {
+        use std::process::{Command, Stdio};
+        use std::thread::sleep;
+        use std::time::Duration;
 
-#[test]
-fn test_write_single_coil() {
-    let _s = start_dummy_server("2223");
-    let mut ctx = Ctx::new_with_port("127.0.0.1", 2223).unwrap();
-    for i in 0..10 {
-        assert!(write_single_coil(&mut ctx, i, BitValue::On).is_ok());
+        // get and increment global port number for current test
+        let port = PORT.fetch_add(1, Ordering::SeqCst);
+        let ck = ChildKiller(Command::new("./test/diagslave")
+                            .arg("-m").arg("tcp")
+                            .arg("-p").arg(port.to_string())
+                            .stdout(Stdio::null())
+                            .spawn()
+                            .unwrap_or_else(|e| { panic!("failed to execute process: {}", e) }));
+        sleep(Duration::from_millis(500));
+        (ck, port as u16)
     }
-}
 
-#[test]
-fn test_write_single_register() {
-    let _s = start_dummy_server("2224");
-    let mut ctx = Ctx::new_with_port("127.0.0.1", 2224).unwrap();
-    for i in 0..10 {
-        assert!(write_single_register(&mut ctx, i, i).is_ok());
+    #[test]
+    fn test_packet_tid_creation() {
+        let (_s, port) = start_dummy_server();
+        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
+        let mut hd = Header::new(&mut ctx, 10);
+        assert!(hd.tid == 1u16);
+        hd = Header::new(&mut ctx, 10);
+        assert!(hd.tid == 2u16);
+        ctx.tid = u16::MAX;
+        hd = Header::new(&mut ctx, 10);
+        assert!(hd.tid == 0);
     }
-}
 
-#[test]
-fn test_read_coils() {
-    let _s = start_dummy_server("2225");
-    let mut ctx = Ctx::new_with_port("127.0.0.1", 2225).unwrap();
+    #[test]
+    fn test_write_single_coil() {
+        let (_s, port) = start_dummy_server();
+        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
+        assert!(write_single_coil(&mut ctx, 0, BitValue::On).is_ok());
+    }
 
-    assert!(write_single_coil(&mut ctx, 1, BitValue::On).is_ok());
-    assert!(write_single_coil(&mut ctx, 3, BitValue::On).is_ok());
-    assert!(read_coils(&mut ctx, 0, 5).unwrap() ==
-            vec![BitValue::Off, BitValue::On, BitValue::Off, BitValue::On, BitValue::Off]);
-    assert!(read_coils(&mut ctx, 1, 5).unwrap() ==
-            vec![BitValue::On, BitValue::Off, BitValue::On, BitValue::Off, BitValue::Off]);
+    #[test]
+    fn test_read_coils() {
+        let (_s, port) = start_dummy_server();
+        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
+        assert!(read_coils(&mut ctx, 0, 5).unwrap().len() == 5);
+        assert!(read_coils(&mut ctx, 0, 5).unwrap().iter().all(|c| *c == BitValue::Off));
+    }
 
+    #[test]
+    fn test_read_discrete_inputs() {
+        let (_s, port) = start_dummy_server();
+        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
+        assert!(read_discrete_inputs(&mut ctx, 0, 5).unwrap().len() == 5);
+        assert!(read_discrete_inputs(&mut ctx, 0, 5).unwrap().iter().all(|c| *c == BitValue::Off));
+    }
+
+    #[test]
+    fn test_read_holding_registers() {
+        let (_s, port) = start_dummy_server();
+        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
+        assert_eq!(read_holding_registers(&mut ctx, 0, 5).unwrap().len(), 5);
+        assert!(read_holding_registers(&mut ctx, 0, 5).unwrap().iter().all(|c| *c == 0));
+    }
+
+    #[test]
+    fn test_write_single_register() {
+        let (_s, port) = start_dummy_server();
+        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
+        assert!(write_single_register(&mut ctx, 0, 1).is_ok());
+    }
+
+
+    #[test]
+    fn test_read_write_coils() {
+        let (_s, port) = start_dummy_server();
+        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
+
+        assert!(write_single_coil(&mut ctx, 1, BitValue::On).is_ok());
+        assert!(write_single_coil(&mut ctx, 3, BitValue::On).is_ok());
+        assert!(read_coils(&mut ctx, 0, 5).unwrap() ==
+                vec![BitValue::Off, BitValue::On, BitValue::Off, BitValue::On, BitValue::Off]);
+        assert!(read_coils(&mut ctx, 1, 5).unwrap() ==
+                vec![BitValue::On, BitValue::Off, BitValue::On, BitValue::Off, BitValue::Off]);
+        assert!(write_single_coil(&mut ctx, 10, BitValue::On).is_ok());
+        assert!(write_single_coil(&mut ctx, 11, BitValue::On).is_ok());
+        assert!(read_coils(&mut ctx, 9, 4).unwrap() ==
+                vec![BitValue::Off, BitValue::On, BitValue::On, BitValue::Off]);
+        assert!(write_single_coil(&mut ctx, 10, BitValue::Off).is_ok());
+        assert!(write_single_coil(&mut ctx, 11, BitValue::Off).is_ok());
+        assert!(read_coils(&mut ctx, 9, 4).unwrap() ==
+                vec![BitValue::Off, BitValue::Off, BitValue::Off, BitValue::Off]);
+    }
 }
