@@ -5,7 +5,8 @@ extern crate modbus;
 use std::process::Child;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use modbus::tcp::{read_coils, read_discrete_inputs, read_input_registers, read_holding_registers,
-                  write_single_coil, write_single_register, Ctx};
+                  write_single_coil, write_single_register, write_multiple_coils,
+                  write_multiple_registers, Ctx};
 use modbus::BitValue;
 
 // global unique portnumber between all test threads
@@ -91,11 +92,27 @@ fn test_write_single_register() {
     assert!(write_single_register(&mut ctx, 0, 1).is_ok());
 }
 
+#[test]
+fn test_write_multiple_coils() {
+    let (_s, port) = start_dummy_server();
+    let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
+    assert!(write_multiple_coils(&mut ctx, 0, &[BitValue::On, BitValue::Off]).is_ok());
+    assert!(write_multiple_coils(&mut ctx, 0, &[]).is_err());
+}
+
+#[test]
+fn test_write_multiple_registers() {
+    let (_s, port) = start_dummy_server();
+    let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
+    assert!(write_multiple_registers(&mut ctx, 0, &[0, 1, 2, 3]).is_ok());
+    assert!(write_multiple_registers(&mut ctx, 0, &[]).is_err());
+}
+
 /// /////////////////////
 /// coil WRITE-READ tests
 
 #[test]
-fn test_write_read_coils() {
+fn test_write_read_single_coils() {
     let (_s, port) = start_dummy_server();
     let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
 
@@ -130,4 +147,34 @@ fn test_write_read_single_register() {
     assert_eq!(read_holding_registers(&mut ctx, 0, 2).unwrap(),
                vec![23, 24]);
     assert_eq!(read_input_registers(&mut ctx, 0, 2).unwrap(), vec![23, 24]);
+}
+
+#[test]
+fn test_write_read_multiple_coils() {
+    let (_s, port) = start_dummy_server();
+    let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
+    assert!(write_multiple_coils(&mut ctx, 0, &[BitValue::Off, BitValue::On]).is_ok());
+    assert_eq!(read_coils(&mut ctx, 0, 3).unwrap(),
+               &[BitValue::Off, BitValue::On, BitValue::Off]);
+    assert!(write_multiple_coils(&mut ctx, 0, &[BitValue::On; 9]).is_ok());
+    assert_eq!(read_coils(&mut ctx, 0, 9).unwrap(), &[BitValue::On; 9]);
+}
+
+#[test]
+fn test_write_read_multiple_registers() {
+    let (_s, port) = start_dummy_server();
+    let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
+    assert!(write_multiple_registers(&mut ctx, 0, &[]).is_err());
+    assert!(write_multiple_registers(&mut ctx, 0, &[23]).is_ok());
+    assert_eq!(read_holding_registers(&mut ctx, 0, 1).unwrap(), &[23]);
+    assert_eq!(read_input_registers(&mut ctx, 0, 1).unwrap(), &[23]);
+    assert!(write_multiple_registers(&mut ctx, 0, &[1, 2, 3]).is_ok());
+    assert_eq!(read_holding_registers(&mut ctx, 0, 1).unwrap(), &[1]);
+    assert_eq!(read_input_registers(&mut ctx, 0, 1).unwrap(), &[1]);
+    assert_eq!(read_holding_registers(&mut ctx, 1, 1).unwrap(), &[2]);
+    assert_eq!(read_input_registers(&mut ctx, 1, 1).unwrap(), &[2]);
+    assert_eq!(read_holding_registers(&mut ctx, 2, 1).unwrap(), &[3]);
+    assert_eq!(read_input_registers(&mut ctx, 2, 1).unwrap(), &[3]);
+    assert_eq!(read_holding_registers(&mut ctx, 0, 3).unwrap(), &[1, 2, 3]);
+    assert_eq!(read_input_registers(&mut ctx, 0, 3).unwrap(), &[1, 2, 3]);
 }

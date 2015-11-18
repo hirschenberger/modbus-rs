@@ -160,6 +160,18 @@ pub fn write_single_register(ctx: &mut Ctx, addr: u16, value: u16) -> ModbusResu
     write_single(ctx, Function::WriteSingleRegister(addr, value))
 }
 
+pub fn write_multiple_coils(ctx: &mut Ctx, addr: u16, values: &[BitValue]) -> ModbusResult<()> {
+    let bytes = pack_bits(values);
+    write_multiple(ctx,
+                   Function::WriteMultipleCoils(addr, values.len() as u16, &bytes[..]))
+}
+
+pub fn write_multiple_registers(ctx: &mut Ctx, addr: u16, values: &[u16]) -> ModbusResult<()> {
+    let bytes = unpack_bytes(values);
+    write_multiple(ctx,
+                   Function::WriteMultipleRegisters(addr, values.len() as u16, &bytes[..]))
+}
+
 fn write_single(ctx: &mut Ctx, fun: Function) -> ModbusResult<()> {
     let (addr, value) = match fun {
         Function::WriteSingleCoil(a, v) => (a, v),
@@ -171,6 +183,24 @@ fn write_single(ctx: &mut Ctx, fun: Function) -> ModbusResult<()> {
     try!(buff.write_u8(fun.code()));
     try!(buff.write_u16::<BigEndian>(addr));
     try!(buff.write_u16::<BigEndian>(value));
+    write(ctx, &mut buff)
+}
+
+fn write_multiple(ctx: &mut Ctx, fun: Function) -> ModbusResult<()> {
+    let (addr, quantity, values) = match fun {
+        Function::WriteMultipleCoils(a, q, v) => (a, q, v),
+        Function::WriteMultipleRegisters(a, q, v) => (a, q, v),
+        _ => panic!("Unexpected modbus function"),
+    };
+
+    let mut buff = vec![0; MODBUS_HEADER_SIZE];  // Header gets filled in later
+    try!(buff.write_u8(fun.code()));
+    try!(buff.write_u16::<BigEndian>(addr));
+    try!(buff.write_u16::<BigEndian>(quantity));
+    try!(buff.write_u8(values.len() as u8));
+    for v in values {
+        try!(buff.write_u8(*v));
+    }
     write(ctx, &mut buff)
 }
 
@@ -243,6 +273,35 @@ fn unpack_bits(bytes: &[u8], count: u16) -> Vec<BitValue> {
     res
 }
 
+fn pack_bits(bits: &[BitValue]) -> Vec<u8> {
+    let bitcount = bits.len();
+    let packed_size = bitcount / 8 +
+                      if bitcount % 8 > 0 {
+        1
+    } else {
+        0
+    };
+    let mut res = vec![0; packed_size];
+    for (i, b) in bits.iter().enumerate() {
+        let v = match *b {
+            BitValue::On => 1u8,
+            BitValue::Off => 0u8,
+        };
+        res[(i / 8) as usize] |= v << (i % 8);
+    }
+    res
+}
+
+fn unpack_bytes(data: &[u16]) -> Vec<u8> {
+    let size = data.len();
+    let mut res = Vec::with_capacity(size * 2);
+    for b in data {
+        res.push((*b >> 8 & 0xff) as u8);
+        res.push((*b & 0xff) as u8);
+    }
+    res
+}
+
 fn pack_bytes(bytes: &[u8]) -> ModbusResult<Vec<u16>> {
     let size = bytes.len();
     // check if we can create u16s from bytes by packing two u8s together without rest
@@ -250,7 +309,7 @@ fn pack_bytes(bytes: &[u8]) -> ModbusResult<Vec<u16>> {
         return Err(ModbusError::InvalidData);
     }
 
-    let mut res = vec![];
+    let mut res = Vec::with_capacity(size / 2 + 1);
     let mut rdr = Cursor::new(bytes);
     for _ in 0..size / 2 {
         res.push(try!(rdr.read_u16::<BigEndian>()));
@@ -260,30 +319,54 @@ fn pack_bytes(bytes: &[u8]) -> ModbusResult<Vec<u16>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{unpack_bits, pack_bytes};
+    use super::{pack_bits, unpack_bits, pack_bytes, unpack_bytes};
     use super::super::*;
 
     #[test]
     fn test_unpack_bits() {
-        assert_eq!(unpack_bits(&[], 0), vec![]);
-        assert_eq!(unpack_bits(&[0, 0], 0), vec![]);
-        assert_eq!(unpack_bits(&[0b1], 1), vec![BitValue::On]);
-        assert_eq!(unpack_bits(&[0b01], 2), vec![BitValue::On, BitValue::Off]);
-        assert_eq!(unpack_bits(&[0b10], 2), vec![BitValue::Off, BitValue::On]);
+        assert_eq!(unpack_bits(&[], 0), &[]);
+        assert_eq!(unpack_bits(&[0, 0], 0), &[]);
+        assert_eq!(unpack_bits(&[0b1], 1), &[BitValue::On]);
+        assert_eq!(unpack_bits(&[0b01], 2), &[BitValue::On, BitValue::Off]);
+        assert_eq!(unpack_bits(&[0b10], 2), &[BitValue::Off, BitValue::On]);
         assert_eq!(unpack_bits(&[0b101], 3),
-                   vec![BitValue::On, BitValue::Off, BitValue::On]);
-        assert_eq!(unpack_bits(&[0xff, 0b11], 10), vec![BitValue::On; 10]);
+                   &[BitValue::On, BitValue::Off, BitValue::On]);
+        assert_eq!(unpack_bits(&[0xff, 0b11], 10), &[BitValue::On; 10]);
+    }
+
+    #[test]
+    fn test_pack_bits() {
+        assert_eq!(pack_bits(&[]), &[]);
+        assert_eq!(pack_bits(&[BitValue::On]), &[1]);
+        assert_eq!(pack_bits(&[BitValue::Off]), &[0]);
+        assert_eq!(pack_bits(&[BitValue::On, BitValue::Off]), &[1]);
+        assert_eq!(pack_bits(&[BitValue::Off, BitValue::On]), &[2]);
+        assert_eq!(pack_bits(&[BitValue::On, BitValue::On]), &[3]);
+        assert_eq!(pack_bits(&[BitValue::On; 8]), &[255]);
+        assert_eq!(pack_bits(&[BitValue::On; 9]), &[255, 1]);
+        assert_eq!(pack_bits(&[BitValue::Off; 8]), &[0]);
+        assert_eq!(pack_bits(&[BitValue::Off; 9]), &[0, 0]);
+    }
+
+    #[test]
+    fn test_unpack_bytes() {
+        assert_eq!(unpack_bytes(&[]), &[]);
+        assert_eq!(unpack_bytes(&[0]), &[0, 0]);
+        assert_eq!(unpack_bytes(&[1]), &[0, 1]);
+        assert_eq!(unpack_bytes(&[0xffff]), &[0xff, 0xff]);
+        assert_eq!(unpack_bytes(&[0xffff, 0x0001]), &[0xff, 0xff, 0x00, 0x01]);
+        assert_eq!(unpack_bytes(&[0xffff, 0x1001]), &[0xff, 0xff, 0x10, 0x01]);
     }
 
     #[test]
     fn test_pack_bytes() {
-        assert_eq!(pack_bytes(&[]).unwrap(), vec![]);
-        assert_eq!(pack_bytes(&[0, 0]).unwrap(), vec![0]);
-        assert_eq!(pack_bytes(&[0, 1]).unwrap(), vec![1]);
-        assert_eq!(pack_bytes(&[1, 0]).unwrap(), vec![256]);
-        assert_eq!(pack_bytes(&[1, 1]).unwrap(), vec![257]);
-        assert_eq!(pack_bytes(&[0, 1, 0, 2]).unwrap(), vec![1, 2]);
-        assert_eq!(pack_bytes(&[1, 1, 1, 2]).unwrap(), vec![257, 258]);
+        assert_eq!(pack_bytes(&[]).unwrap(), &[]);
+        assert_eq!(pack_bytes(&[0, 0]).unwrap(), &[0]);
+        assert_eq!(pack_bytes(&[0, 1]).unwrap(), &[1]);
+        assert_eq!(pack_bytes(&[1, 0]).unwrap(), &[256]);
+        assert_eq!(pack_bytes(&[1, 1]).unwrap(), &[257]);
+        assert_eq!(pack_bytes(&[0, 1, 0, 2]).unwrap(), &[1, 2]);
+        assert_eq!(pack_bytes(&[1, 1, 1, 2]).unwrap(), &[257, 258]);
         assert!(pack_bytes(&[1]).is_err());
         assert!(pack_bytes(&[1, 2, 3]).is_err());
     }
