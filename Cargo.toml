@@ -19,8 +19,8 @@ byteorder = "0.4.2"
 clippy = {version = "0.0.*", optional = true}
 
 [dev-dependencies]
-test-server = {path = "test-server"}
+modbus-test-server = {path = "test-server", version="0.0.*", feature=["modbus-test-server/modbus-server-tests"]}
 
 [features]
 default=[]
-modbus-server-tests = ["test-server/modbus-server-tests"]
+modbus-server-tests = ["modbus-test-server/modbus-server-tests"]
