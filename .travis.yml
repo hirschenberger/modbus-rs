@@ -10,7 +10,6 @@ addons:
       - libcurl4-openssl-dev
       - libelf-dev
       - libdw-dev
-      - libmodbus-dev
 matrix:
   allow_failures:
   - rust: nightly
@@ -23,14 +22,14 @@ before_script:
 script:
 - ! 'travis-cargo build &&
 
-  travis-cargo test --features modbus-server-tests &&
+  travis-cargo test  &&
 
   travis-cargo --only stable doc
 
 '
 after_success:
 - travis-cargo --only stable doc-upload
-- travis-cargo coveralls --features modbus-server-tests --no-sudo
+- travis-cargo coveralls --no-sudo
 notifications:
   email:
     on_success: never
