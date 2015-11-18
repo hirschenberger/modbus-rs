@@ -12,14 +12,12 @@ Add `modbus` to your `Cargo.toml` dependencies:
 
 ```toml
 [dependencies]
-modbus = "0.0.4"
+modbus = "0.1.0"
 ```
 
 Import the `modbus` crate and use it's functions:
 
 ```rust
-extern crate modbus;
-
 use modbus::{BitValue};
 use modbus::tcp::{Ctx, write_single_coil, read_coils};
 
