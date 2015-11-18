@@ -1,5 +1,27 @@
+//! Modbus implementation in pure Rust.
+//!
+//! # Examples
+//!
+//! ```
+//! # extern crate modbus;
+//! # extern crate test_server;
+//! # use test_server::start_dummy_server;
+//! # fn main() {
+//! use modbus::BitValue;
+//! use modbus::tcp::{Ctx, write_single_coil};
+//! # if cfg!(feature = "modbus-server-tests") {
+//! # let (_s, port) = start_dummy_server();
+//!
+//! // let port = 502;
+//! let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
+//! assert!(write_single_coil(&mut ctx, 0, BitValue::On).is_ok());
+//! # }
+//! # }
+//! ```
+
 #![cfg_attr(feature="clippy", feature(plugin))]
 #![cfg_attr(feature="clippy", plugin(clippy))]
+
 #[macro_use]
 extern crate enum_primitive;
 extern crate num;
@@ -10,6 +32,9 @@ extern crate byteorder;
 use std::io;
 use bincode::rustc_serialize::{DecodingError, EncodingError};
 
+
+
+/// The Modbus TCP backend implements a Modbus variant used for communication over TCP/IPv4 networks.
 pub mod tcp;
 
 type Address  = u16;
@@ -50,7 +75,7 @@ impl<'a> Function<'a> {
 
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
-/// Modbus exception codes
+/// Modbus exception codes returned from the server.
 pub enum ModbusExceptionCode {
     IllegalFunction         = 0x01,
     IllegalDataAddress      = 0x02,
@@ -66,6 +91,7 @@ pub enum ModbusExceptionCode {
 }
 }
 
+/// Combination of Modbus, IO and data corruption errors
 #[derive(Debug)]
 pub enum ModbusError {
     ModbusException(ModbusExceptionCode),
@@ -104,11 +130,11 @@ impl From<byteorder::Error> for ModbusError {
     }
 }
 
-
+/// Result type used to nofify success or failure in communication
 pub type ModbusResult<T> = std::result::Result<T, ModbusError>;
 
 
-/// Single bit status values
+/// Single bit status values, used in read or write coil functions
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BitValue {
     On,

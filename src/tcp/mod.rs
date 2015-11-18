@@ -25,13 +25,13 @@ pub struct Ctx {
 }
 
 impl Ctx {
-    /// Create a new context `Ctx` context object and connect it to `addr` on modbus-tcp default
+    /// Create a new context context object and connect it to `addr` on modbus-tcp default
     /// port (502)
     pub fn new(addr: &str) -> io::Result<Ctx> {
         Self::new_with_port(addr, MODBUS_TCP_DEFAULT_PORT)
     }
 
-    /// Create a new context `Ctx` context object and connect it to `addr` on port `port`
+    /// Create a new context object and connect it to `addr` on port `port`
     pub fn new_with_port(addr: &str, port: u16) -> io::Result<Ctx> {
         match TcpStream::connect((addr, port)) {
             Ok(s) => {
@@ -51,9 +51,8 @@ impl Ctx {
         }
     }
 
-    /// Create a new transaction Id, incrementing the previous one.
-    ///
-    /// The Id is wrapping around if the Id reaches `u16::MAX`.
+    // Create a new transaction Id, incrementing the previous one.
+    // The Id is wrapping around if the Id reaches `u16::MAX`.
     fn new_tid(&mut self) -> u16 {
         self.tid = self.tid.wrapping_add(1);
         self.tid
@@ -86,23 +85,27 @@ impl Header {
     }
 }
 
+/// Read `count` bits starting at address `addr`.
 pub fn read_coils(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>> {
     let bytes = try!(read(ctx, Function::ReadCoils(addr, count)));
     let res = unpack_bits(&bytes, count);
     Ok(res)
 }
 
+/// Read `count` input bits starting at address `addr`.
 pub fn read_discrete_inputs(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>> {
     let bytes = try!(read(ctx, Function::ReadDiscreteInputs(addr, count)));
     let res = unpack_bits(&bytes, count);
     Ok(res)
 }
 
+/// Read `count` 16bit registers starting at address `addr`.
 pub fn read_holding_registers(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<u16>> {
     let bytes = try!(read(ctx, Function::ReadHoldingRegisters(addr, count)));
     pack_bytes(&bytes[..])
 }
 
+/// Read `count` 16bit input registers starting at address `addr`.
 pub fn read_input_registers(ctx: &mut Ctx, addr: u16, count: u16) -> ModbusResult<Vec<u16>> {
     let bytes = try!(read(ctx, Function::ReadInputRegisters(addr, count)));
     pack_bytes(&bytes[..])
@@ -152,20 +155,24 @@ fn read(ctx: &mut Ctx, fun: Function) -> ModbusResult<Vec<u8>> {
     }
 }
 
+/// Write a single coil (bit) to address `addr`.
 pub fn write_single_coil(ctx: &mut Ctx, addr: u16, value: BitValue) -> ModbusResult<()> {
     write_single(ctx, Function::WriteSingleCoil(addr, value.code()))
 }
 
+/// Write a single 16bit register to address `addr`.
 pub fn write_single_register(ctx: &mut Ctx, addr: u16, value: u16) -> ModbusResult<()> {
     write_single(ctx, Function::WriteSingleRegister(addr, value))
 }
 
+/// Write a multiple coils (bits) starting at address `addr`.
 pub fn write_multiple_coils(ctx: &mut Ctx, addr: u16, values: &[BitValue]) -> ModbusResult<()> {
     let bytes = pack_bits(values);
     write_multiple(ctx,
                    Function::WriteMultipleCoils(addr, values.len() as u16, &bytes[..]))
 }
 
+/// Write a multiple 16bit registers starting at address `addr`.
 pub fn write_multiple_registers(ctx: &mut Ctx, addr: u16, values: &[u16]) -> ModbusResult<()> {
     let bytes = unpack_bytes(values);
     write_multiple(ctx,

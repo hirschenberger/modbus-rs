@@ -1,44 +1,13 @@
-#[macro_use]
-extern crate lazy_static;
+extern crate test_server;
 extern crate modbus;
 
 #[cfg(feature="modbus-server-tests")]
 mod modbus_server_tests {
-
-    use std::process::Child;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use test_server::start_dummy_server;
     use modbus::tcp::{read_coils, read_discrete_inputs, read_input_registers,
                       read_holding_registers, write_single_coil, write_single_register,
                       write_multiple_coils, write_multiple_registers, Ctx};
     use modbus::BitValue;
-
-    // global unique portnumber between all test threads
-    lazy_static!{ static ref PORT: AtomicUsize = AtomicUsize::new(22222); }
-
-    struct ChildKiller(Child);
-
-    #[cfg(test)]
-    impl Drop for ChildKiller {
-        fn drop(&mut self) {
-            let _ = self.0.kill();
-        }
-    }
-
-    fn start_dummy_server() -> (ChildKiller, u16) {
-        use std::process::{Command, Stdio};
-        use std::thread::sleep;
-        use std::time::Duration;
-
-        // get and increment global port number for current test
-        let port = PORT.fetch_add(1, Ordering::SeqCst);
-        let ck = ChildKiller(Command::new("./tests/test-server")
-                                 .arg(port.to_string())
-                                 .stdout(Stdio::null())
-                                 .spawn()
-                                 .unwrap_or_else(|e| panic!("failed to execute process: {}", e)));
-        sleep(Duration::from_millis(500));
-        (ck, port as u16)
-    }
 
     /// /////////////////////
     /// simple READ tests

@@ -9,7 +9,7 @@ fn main() {
         let output = String::from_utf8_lossy(&pkg_cfg.stdout);
         let flags: Vec<&str> = output.split_whitespace().collect();
         let out = Command::new("gcc")
-                      .args(&["tests/test-server.c", "-o", "tests/test-server"])
+                      .args(&["test-server.c", "-o", "test-server"])
                       .args(&flags[..])
                       .output()
                       .unwrap_or_else(|e| panic!("Error running gcc: {}", e));
