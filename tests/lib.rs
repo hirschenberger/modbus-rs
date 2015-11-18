@@ -2,7 +2,6 @@
 extern crate lazy_static;
 extern crate modbus;
 
-
 #[cfg(feature="modbus-server-tests")]
 mod modbus_server_tests {
 
