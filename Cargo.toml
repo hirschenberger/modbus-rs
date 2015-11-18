@@ -1,6 +1,6 @@
 [package]
 name = "modbus"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["Falco Hirschenberger <falco.hirschenberger@gmail.com>"]
 repository = "https://github.com/hirschenberger/modbus-rs.git"
 homepage = "https://github.com/hirschenberger/modbus-rs.git"
