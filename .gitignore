@@ -1,2 +1,4 @@
 target
 Cargo.lock
+test-server/test-server
+
