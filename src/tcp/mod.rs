@@ -9,7 +9,7 @@ use bincode::SizeLimit;
 
 use enum_primitive::FromPrimitive;
 
-use {Function, ModbusResult, ModbusExceptionCode, ModbusError, BitValue};
+use {Function, ModbusResult, ModbusExceptionCode, ModbusError, BitValue, Client};
 
 const MODBUS_PROTOCOL_TCP: u16 = 0x0000;
 const MODBUS_TCP_DEFAULT_PORT: u16 = 502;
@@ -322,6 +322,42 @@ fn pack_bytes(bytes: &[u8]) -> ModbusResult<Vec<u16>> {
         res.push(try!(rdr.read_u16::<BigEndian>()));
     }
     Ok(res)
+}
+
+impl Client for Ctx {
+
+  fn read_discrete_inputs(&mut self, address: u16, quantity: u16) -> ModbusResult<Vec<BitValue>> {
+    read_discrete_inputs(self, address, quantity)
+  }
+
+  fn read_coils(&mut self, address: u16, quantity: u16) -> ModbusResult<Vec<BitValue>> {
+    read_coils(self, address, quantity)
+  }
+
+  fn write_single_coil(&mut self, address: u16, value: BitValue) -> ModbusResult<()> {
+    write_single_coil(self, address, value)
+  }
+
+  fn write_multiple_coils(&mut self, address: u16, coils: &Vec<BitValue>) -> ModbusResult<()> {
+    write_multiple_coils(self, address, coils)
+  }
+
+  fn read_input_registers(&mut self, address: u16, quantity: u16) -> ModbusResult<Vec<u16>> {
+    read_input_registers(self, address, quantity)
+  }
+
+  fn read_holding_registers(&mut self, address: u16, quantity: u16) -> ModbusResult<Vec<u16>> {
+    read_holding_registers(self, address, quantity)
+  }
+
+  fn write_single_register(&mut self, address: u16, value: u16) -> ModbusResult<()> {
+    write_single_register(self, address, value)
+  }
+
+  fn write_multiple_registers(&mut self, address: u16, values: &Vec<u16>) -> ModbusResult<()> {
+    write_multiple_registers(self, address, values)
+  }
+
 }
 
 #[cfg(test)]
