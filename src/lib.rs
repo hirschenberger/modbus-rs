@@ -77,7 +77,7 @@ impl<'a> Function<'a> {
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
 /// Modbus exception codes returned from the server.
-pub enum ModbusExceptionCode {
+pub enum ExceptionCode {
     IllegalFunction         = 0x01,
     IllegalDataAddress      = 0x02,
     IllegalDataValue        = 0x03,
@@ -94,45 +94,45 @@ pub enum ModbusExceptionCode {
 
 /// Combination of Modbus, IO and data corruption errors
 #[derive(Debug)]
-pub enum ModbusError {
-    ModbusException(ModbusExceptionCode),
+pub enum Error {
+    Exception(ExceptionCode),
     Io(io::Error),
     InvalidResponse,
     InvalidData
 }
 
-impl From<ModbusExceptionCode> for ModbusError {
-    fn from(err: ModbusExceptionCode) -> ModbusError {
-        ModbusError::ModbusException(err)
+impl From<ExceptionCode> for Error {
+    fn from(err: ExceptionCode) -> Error {
+        Error::Exception(err)
     }
 }
 
-impl From<io::Error> for ModbusError {
-    fn from(err: io::Error) -> ModbusError {
-        ModbusError::Io(err)
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::Io(err)
     }
 }
 
-impl From<DecodingError> for ModbusError {
-    fn from(_err: DecodingError) -> ModbusError {
-        ModbusError::InvalidData
+impl From<DecodingError> for Error {
+    fn from(_err: DecodingError) -> Error {
+        Error::InvalidData
     }
 }
 
-impl From<EncodingError> for ModbusError {
-    fn from(_err: EncodingError) -> ModbusError {
-        ModbusError::InvalidData
+impl From<EncodingError> for Error {
+    fn from(_err: EncodingError) -> Error {
+        Error::InvalidData
     }
 }
 
-impl From<byteorder::Error> for ModbusError {
-    fn from(_err: byteorder::Error) -> ModbusError {
-        ModbusError::InvalidData
+impl From<byteorder::Error> for Error {
+    fn from(_err: byteorder::Error) -> Error {
+        Error::InvalidData
     }
 }
 
 /// Result type used to nofify success or failure in communication
-pub type ModbusResult<T> = std::result::Result<T, ModbusError>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 
 /// Single bit status values, used in read or write coil functions

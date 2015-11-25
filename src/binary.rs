@@ -1,6 +1,6 @@
 use std::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt};
-use {BitValue, ModbusResult, ModbusError};
+use {BitValue, Result, Error};
 
 pub fn unpack_bits(bytes: &[u8], count: u16) -> Vec<BitValue> {
     let mut res = Vec::with_capacity(count as usize);
@@ -43,11 +43,11 @@ pub fn unpack_bytes(data: &[u16]) -> Vec<u8> {
     res
 }
 
-pub fn pack_bytes(bytes: &[u8]) -> ModbusResult<Vec<u16>> {
+pub fn pack_bytes(bytes: &[u8]) -> Result<Vec<u16>> {
     let size = bytes.len();
     // check if we can create u16s from bytes by packing two u8s together without rest
     if size % 2 != 0 {
-        return Err(ModbusError::InvalidData);
+        return Err(Error::InvalidData);
     }
 
     let mut res = Vec::with_capacity(size / 2 + 1);
