@@ -137,4 +137,13 @@ mod modbus_server_tests {
         assert_eq!(read_holding_registers(&mut ctx, 2, 1).unwrap(), &[3]);
         assert_eq!(read_holding_registers(&mut ctx, 0, 3).unwrap(), &[1, 2, 3]);
     }
+
+    #[test]
+    fn test_write_too_big() {
+        let (_s, port) = start_dummy_server();
+        let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
+        // (MODBUS_MAX_WRITE_COUNT - HEADER) / u16-bytes
+        assert!(write_multiple_registers(&mut ctx, 0, &[0xdead; (0x79 - 12) / 2]).is_ok());
+        assert!(write_multiple_registers(&mut ctx, 0, &[0xdead; (0x79 - 11) / 2]).is_err());
+    }
 }
