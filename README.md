@@ -12,7 +12,7 @@ Add `modbus` to your `Cargo.toml` dependencies:
 
 ```toml
 [dependencies]
-modbus = "0.1.0"
+modbus = "0.2.0"
 ```
 
 Import the `modbus` crate and use it's functions:
