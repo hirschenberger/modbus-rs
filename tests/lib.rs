@@ -140,7 +140,7 @@ mod modbus_server_tests {
         let (_s, port) = start_dummy_server();
         let mut ctx = Ctx::new_with_port("127.0.0.1", port).unwrap();
         // (MODBUS_MAX_WRITE_COUNT - HEADER) / u16-bytes
-        assert!(write_multiple_registers(&mut ctx, 0, &[0xdead; (0x79 - 12) / 2]).is_ok());
-        assert!(write_multiple_registers(&mut ctx, 0, &[0xdead; (0x79 - 11) / 2]).is_err());
+        assert!(ctx.write_multiple_registers(0, &[0xdead; (0x79 - 12) / 2]).is_ok());
+        assert!(ctx.write_multiple_registers(0, &[0xdead; (0x79 - 11) / 2]).is_err());
     }
 }
