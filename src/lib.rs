@@ -55,7 +55,6 @@ pub trait Client {
   fn write_multiple_registers(&mut self, address: u16, values: &[u16]) -> ModbusResult<()>;
 }
 
-
 impl Client {
   fn unpack_bits(bytes: &[u8], count: u16) -> Vec<BitValue> {
       let mut res = Vec::with_capacity(count as usize);
@@ -148,7 +147,6 @@ impl<'a> Function<'a> {
     // WriteAndReadRegisters   = 0x17
     }
 }
-
 
 enum_from_primitive! {
 #[derive(Debug, PartialEq)]
