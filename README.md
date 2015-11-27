@@ -18,15 +18,15 @@ modbus = "0.1.0"
 Import the `modbus` crate and use it's functions:
 
 ```rust
-use modbus::{BitValue};
-use modbus::tcp::{Ctx, write_single_coil, read_coils};
+use modbus::{Client, BitValue};
+use modbus::tcp;
 
-let mut ctx = Ctx::new("192.168.0.10");
+let mut client = tcp::Ctx::new("192.168.0.10");
 
-write_single_coil(&mut ctx, 1, BitValue::On).unwrap();
-write_single_coil(&mut ctx, 3, BitValue::On).unwrap();
+client.write_single_coil(1, BitValue::On).unwrap();
+client.write_single_coil(3, BitValue::On).unwrap();
 
-let res = read_coils(&mut ctx, 0, 5).unwrap();
+let res = client.read_coils(0, 5).unwrap();
 
 // res ==  vec![BitValue::Off, BitValue::On, BitValue::Off, BitValue::On, BitValue::Off]);
 ```
