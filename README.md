@@ -21,7 +21,7 @@ Import the `modbus` crate and use it's functions:
 use modbus::{Client, BitValue};
 use modbus::tcp;
 
-let mut client = tcp::Ctx::new("192.168.0.10");
+let mut client = tcp::Transport::new("192.168.0.10");
 
 client.write_single_coil(1, BitValue::On).unwrap();
 client.write_single_coil(3, BitValue::On).unwrap();

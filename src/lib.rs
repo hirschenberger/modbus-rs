@@ -13,7 +13,7 @@
 //! # let (_s, port) = start_dummy_server();
 //!
 //! // let port = 502;
-//! let mut client = tcp::Ctx::new_with_port("127.0.0.1", port).unwrap();
+//! let mut client = tcp::Transport::new_with_port("127.0.0.1", port).unwrap();
 //! assert!(client.write_single_coil(0, BitValue::On).is_ok());
 //! # }
 //! # }

@@ -15,21 +15,21 @@ const MODBUS_MAX_READ_COUNT: usize = 0x7d;
 const MODBUS_MAX_WRITE_COUNT: usize = 0x79;
 
 /// Context object which holds state for all modbus operations.
-pub struct Ctx {
+pub struct Transport {
     tid: u16,
     uid: u8,
     stream: TcpStream,
 }
 
-impl Ctx {
+impl Transport {
     /// Create a new context context object and connect it to `addr` on modbus-tcp default
     /// port (502)
-    pub fn new(addr: &str) -> io::Result<Ctx> {
+    pub fn new(addr: &str) -> io::Result<Transport> {
         Self::new_with_port(addr, MODBUS_TCP_DEFAULT_PORT)
     }
 
     /// Create a new context object and connect it to `addr` on port `port`
-    pub fn new_with_port(addr: &str, port: u16) -> io::Result<Ctx> {
+    pub fn new_with_port(addr: &str, port: u16) -> io::Result<Transport> {
         match TcpStream::connect((addr, port)) {
             Ok(s) => {
                 // set some sane tcp socket options
@@ -38,7 +38,7 @@ impl Ctx {
                 try!(s.set_write_timeout(Some(t)));
                 //                try!(s.set_nodelay(true));
                 //                try!(s.set_keepalive(None));
-                Ok(Ctx {
+                Ok(Transport {
                     tid: 0,
                     uid: 1,
                     stream: s,
@@ -88,9 +88,9 @@ impl Ctx {
                 match self.stream.read(&mut reply) {
                     Ok(_s) => {
                         let resp_hd = try!(decode(&reply[..MODBUS_HEADER_SIZE]));
-                        try!(Ctx::validate_response_header(&header, &resp_hd));
-                        try!(Ctx::validate_response_code(&buff, &reply[..]));
-                        Ctx::get_reply_data(&reply, expected_bytes)
+                        try!(Transport::validate_response_header(&header, &resp_hd));
+                        try!(Transport::validate_response_code(&buff, &reply[..]));
+                        Transport::get_reply_data(&reply, expected_bytes)
                     }
                     Err(e) => Err(ModbusError::Io(e)),
                 }
@@ -178,8 +178,8 @@ impl Ctx {
                 match self.stream.read(reply) {
                     Ok(_s) => {
                         let resp_hd = try!(decode(&reply[..MODBUS_HEADER_SIZE]));
-                        try!(Ctx::validate_response_header(&header, &resp_hd));
-                        Ctx::validate_response_code(&buff, reply)
+                        try!(Transport::validate_response_header(&header, &resp_hd));
+                        Transport::validate_response_code(&buff, reply)
                     }
                     Err(e) => Err(ModbusError::Io(e)),
                 }
@@ -190,7 +190,7 @@ impl Ctx {
 
 }
 
-impl Drop for Ctx {
+impl Drop for Transport {
     fn drop(&mut self) {
         self.stream.shutdown(Shutdown::Both).unwrap();
     }
@@ -206,17 +206,17 @@ struct Header {
 }
 
 impl Header {
-    fn new(ctx: &mut Ctx, len: u16) -> Header {
+    fn new(transport: &mut Transport, len: u16) -> Header {
         Header {
-            tid: ctx.new_tid(),
+            tid: transport.new_tid(),
             pid: MODBUS_PROTOCOL_TCP,
             len: len - MODBUS_HEADER_SIZE as u16,
-            uid: ctx.uid,
+            uid: transport.uid,
         }
     }
 }
 
-impl Client for Ctx {
+impl Client for Transport {
     /// Read `count` bits starting at address `addr`.
     fn read_coils(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>> {
         let bytes = try!(self.read(Function::ReadCoils(addr, count)));
