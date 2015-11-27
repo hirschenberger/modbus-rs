@@ -1,15 +1,12 @@
-use std::io;
-use std::io::{Write, Read, Cursor};
+use std::io::{self, Write, Read, Cursor};
 use std::net::{TcpStream, Shutdown};
 use std::time::Duration;
 use std::borrow::BorrowMut;
 use byteorder::{BigEndian, WriteBytesExt};
 use bincode::rustc_serialize::{encode, decode};
 use bincode::SizeLimit;
-
 use enum_primitive::FromPrimitive;
-
-use {Function, ModbusResult, ModbusExceptionCode, ModbusError, BitValue, Client};
+use {Function, ModbusResult, ModbusExceptionCode, ModbusError, BitValue, binary, Client};
 
 const MODBUS_PROTOCOL_TCP: u16 = 0x0000;
 const MODBUS_TCP_DEFAULT_PORT: u16 = 502;
@@ -223,27 +220,27 @@ impl Client for Ctx {
     /// Read `count` bits starting at address `addr`.
     fn read_coils(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>> {
         let bytes = try!(self.read(Function::ReadCoils(addr, count)));
-        let res = Client::unpack_bits(&bytes, count);
+        let res = binary::unpack_bits(&bytes, count);
         Ok(res)
     }
 
     /// Read `count` input bits starting at address `addr`.
     fn read_discrete_inputs(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>> {
         let bytes = try!(self.read(Function::ReadDiscreteInputs(addr, count)));
-        let res = Client::unpack_bits(&bytes, count);
+        let res = binary::unpack_bits(&bytes, count);
         Ok(res)
     }
 
     /// Read `count` 16bit registers starting at address `addr`.
     fn read_holding_registers(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<u16>> {
         let bytes = try!(self.read(Function::ReadHoldingRegisters(addr, count)));
-        Client::pack_bytes(&bytes[..])
+        binary::pack_bytes(&bytes[..])
     }
 
     /// Read `count` 16bit input registers starting at address `addr`.
     fn read_input_registers(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<u16>> {
         let bytes = try!(self.read(Function::ReadInputRegisters(addr, count)));
-        Client::pack_bytes(&bytes[..])
+        binary::pack_bytes(&bytes[..])
     }
 
 
@@ -259,13 +256,13 @@ impl Client for Ctx {
 
     /// Write a multiple coils (bits) starting at address `addr`.
     fn write_multiple_coils(self: &mut Self, addr: u16, values: &[BitValue]) -> ModbusResult<()> {
-        let bytes = Client::pack_bits(values);
+        let bytes = binary::pack_bits(values);
         self.write_multiple(Function::WriteMultipleCoils(addr, values.len() as u16, &bytes[..]))
     }
 
     /// Write a multiple 16bit registers starting at address `addr`.
     fn write_multiple_registers(self: &mut Self, addr: u16, values: &[u16]) -> ModbusResult<()> {
-        let bytes = Client::unpack_bytes(values);
+        let bytes = binary::unpack_bytes(values);
         self.write_multiple(Function::WriteMultipleRegisters(addr, values.len() as u16, &bytes[..]))
     }
 }
