@@ -33,9 +33,10 @@ use std::io;
 use bincode::rustc_serialize::{DecodingError, EncodingError};
 
 mod binary;
+mod client;
+
 /// The Modbus TCP backend implements a Modbus variant used for communication over TCP/IPv4 networks.
 pub mod tcp;
-pub mod client;
 pub use client::Client;
 
 type Address  = u16;

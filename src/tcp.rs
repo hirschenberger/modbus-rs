@@ -123,7 +123,6 @@ impl Transport {
            reply.len() != MODBUS_HEADER_SIZE + expected_bytes + 2 {
             Err(ModbusError::InvalidData)
         } else {
-
             let mut d = Vec::new();
             d.extend(reply[MODBUS_HEADER_SIZE + 2..].iter());
             Ok(d)
@@ -220,15 +219,13 @@ impl Client for Transport {
     /// Read `count` bits starting at address `addr`.
     fn read_coils(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>> {
         let bytes = try!(self.read(Function::ReadCoils(addr, count)));
-        let res = binary::unpack_bits(&bytes, count);
-        Ok(res)
+        Ok(binary::unpack_bits(&bytes, count))
     }
 
     /// Read `count` input bits starting at address `addr`.
     fn read_discrete_inputs(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>> {
         let bytes = try!(self.read(Function::ReadDiscreteInputs(addr, count)));
-        let res = binary::unpack_bits(&bytes, count);
-        Ok(res)
+        Ok(binary::unpack_bits(&bytes, count))
     }
 
     /// Read `count` 16bit registers starting at address `addr`.
@@ -242,7 +239,6 @@ impl Client for Transport {
         let bytes = try!(self.read(Function::ReadInputRegisters(addr, count)));
         binary::pack_bytes(&bytes[..])
     }
-
 
     /// Write a single coil (bit) to address `addr`.
     fn write_single_coil(self: &mut Self, addr: u16, value: BitValue) -> ModbusResult<()> {
