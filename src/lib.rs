@@ -7,14 +7,14 @@
 //! # extern crate test_server;
 //! # use test_server::start_dummy_server;
 //! # fn main() {
-//! use modbus::{Client, BitValue};
+//! use modbus::{Client, Coil};
 //! use modbus::tcp;
 //! # if cfg!(feature = "modbus-server-tests") {
 //! # let (_s, port) = start_dummy_server();
 //!
 //! // let port = 502;
 //! let mut client = tcp::Transport::new_with_port("127.0.0.1", port).unwrap();
-//! assert!(client.write_single_coil(0, BitValue::On).is_ok());
+//! assert!(client.write_single_coil(0, Coil::On).is_ok());
 //! # }
 //! # }
 //! ```
@@ -37,7 +37,7 @@ mod client;
 
 /// The Modbus TCP backend implements a Modbus variant used for communication over TCP/IPv4 networks.
 pub mod tcp;
-pub use client::Client;
+pub use client::{Client, ScopedCoil, RegisterDropFunction, CoilDropFunction};
 
 type Address  = u16;
 type Quantity = u16;
@@ -137,16 +137,16 @@ pub type ModbusResult<T> = std::result::Result<T, ModbusError>;
 
 /// Single bit status values, used in read or write coil functions
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum BitValue {
+pub enum Coil {
     On,
     Off
 }
 
-impl BitValue {
+impl Coil {
     fn code(&self) -> u16 {
         match *self {
-            BitValue::On  => 0xff00,
-            BitValue::Off => 0x0000
+            Coil::On  => 0xff00,
+            Coil::Off => 0x0000
         }
     }
 }

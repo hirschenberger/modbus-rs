@@ -1,18 +1,40 @@
 use std::io::{self, Write, Read, Cursor};
 use std::net::{TcpStream, Shutdown};
 use std::time::Duration;
+use std::cell::RefCell;
 use std::borrow::BorrowMut;
 use byteorder::{BigEndian, WriteBytesExt};
 use bincode::rustc_serialize::{encode, decode};
 use bincode::SizeLimit;
 use enum_primitive::FromPrimitive;
-use {Function, ModbusResult, ModbusExceptionCode, ModbusError, BitValue, binary, Client};
+use {Function, ModbusResult, ModbusExceptionCode, ModbusError, Coil, binary, Client, ScopedCoil,
+     CoilDropFunction, RegisterDropFunction};
 
 const MODBUS_PROTOCOL_TCP: u16 = 0x0000;
 const MODBUS_TCP_DEFAULT_PORT: u16 = 502;
 const MODBUS_HEADER_SIZE: usize = 7;
 const MODBUS_MAX_READ_COUNT: usize = 0x7d;
 const MODBUS_MAX_WRITE_COUNT: usize = 0x79;
+
+#[derive(RustcEncodable, RustcDecodable)]
+#[repr(packed)]
+struct Header {
+    tid: u16,
+    pid: u16,
+    len: u16,
+    uid: u8,
+}
+
+impl Header {
+    fn new(transport: &mut Transport, len: u16) -> Header {
+        Header {
+            tid: transport.new_tid(),
+            pid: MODBUS_PROTOCOL_TCP,
+            len: len - MODBUS_HEADER_SIZE as u16,
+            uid: transport.uid,
+        }
+    }
+}
 
 /// Context object which holds state for all modbus operations.
 pub struct Transport {
@@ -195,35 +217,15 @@ impl Drop for Transport {
     }
 }
 
-#[derive(RustcEncodable, RustcDecodable)]
-#[repr(packed)]
-struct Header {
-    tid: u16,
-    pid: u16,
-    len: u16,
-    uid: u8,
-}
-
-impl Header {
-    fn new(transport: &mut Transport, len: u16) -> Header {
-        Header {
-            tid: transport.new_tid(),
-            pid: MODBUS_PROTOCOL_TCP,
-            len: len - MODBUS_HEADER_SIZE as u16,
-            uid: transport.uid,
-        }
-    }
-}
-
 impl Client for Transport {
     /// Read `count` bits starting at address `addr`.
-    fn read_coils(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>> {
+    fn read_coils(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<Coil>> {
         let bytes = try!(self.read(Function::ReadCoils(addr, count)));
         Ok(binary::unpack_bits(&bytes, count))
     }
 
     /// Read `count` input bits starting at address `addr`.
-    fn read_discrete_inputs(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<BitValue>> {
+    fn read_discrete_inputs(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<Coil>> {
         let bytes = try!(self.read(Function::ReadDiscreteInputs(addr, count)));
         Ok(binary::unpack_bits(&bytes, count))
     }
@@ -241,7 +243,7 @@ impl Client for Transport {
     }
 
     /// Write a single coil (bit) to address `addr`.
-    fn write_single_coil(self: &mut Self, addr: u16, value: BitValue) -> ModbusResult<()> {
+    fn write_single_coil(self: &mut Self, addr: u16, value: Coil) -> ModbusResult<()> {
         self.write_single(Function::WriteSingleCoil(addr, value.code()))
     }
 
@@ -251,7 +253,7 @@ impl Client for Transport {
     }
 
     /// Write a multiple coils (bits) starting at address `addr`.
-    fn write_multiple_coils(self: &mut Self, addr: u16, values: &[BitValue]) -> ModbusResult<()> {
+    fn write_multiple_coils(self: &mut Self, addr: u16, values: &[Coil]) -> ModbusResult<()> {
         let bytes = binary::pack_bits(values);
         self.write_multiple(Function::WriteMultipleCoils(addr, values.len() as u16, &bytes[..]))
     }

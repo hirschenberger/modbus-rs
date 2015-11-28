@@ -1,20 +1,20 @@
 use std::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt};
-use {BitValue, ModbusResult, ModbusError};
+use {Coil, ModbusResult, ModbusError};
 
-pub fn unpack_bits(bytes: &[u8], count: u16) -> Vec<BitValue> {
+pub fn unpack_bits(bytes: &[u8], count: u16) -> Vec<Coil> {
     let mut res = Vec::with_capacity(count as usize);
     for i in 0..count {
         if (bytes[(i / 8u16) as usize] >> (i % 8)) & 0b1 > 0 {
-            res.push(BitValue::On);
+            res.push(Coil::On);
         } else {
-            res.push(BitValue::Off);
+            res.push(Coil::Off);
         }
     }
     res
 }
 
-pub fn pack_bits(bits: &[BitValue]) -> Vec<u8> {
+pub fn pack_bits(bits: &[Coil]) -> Vec<u8> {
     let bitcount = bits.len();
     let packed_size = bitcount / 8 +
                       if bitcount % 8 > 0 {
@@ -25,8 +25,8 @@ pub fn pack_bits(bits: &[BitValue]) -> Vec<u8> {
     let mut res = vec![0; packed_size];
     for (i, b) in bits.iter().enumerate() {
         let v = match *b {
-            BitValue::On => 1u8,
-            BitValue::Off => 0u8,
+            Coil::On => 1u8,
+            Coil::Off => 0u8,
         };
         res[(i / 8) as usize] |= v << (i % 8);
     }
@@ -62,26 +62,25 @@ pub fn pack_bytes(bytes: &[u8]) -> ModbusResult<Vec<u16>> {
 fn test_unpack_bits() {
     // assert_eq!(unpack_bits(, 0), &[]);
     assert_eq!(unpack_bits(&[0, 0], 0), &[]);
-    assert_eq!(unpack_bits(&[0b1], 1), &[BitValue::On]);
-    assert_eq!(unpack_bits(&[0b01], 2), &[BitValue::On, BitValue::Off]);
-    assert_eq!(unpack_bits(&[0b10], 2), &[BitValue::Off, BitValue::On]);
-    assert_eq!(unpack_bits(&[0b101], 3),
-               &[BitValue::On, BitValue::Off, BitValue::On]);
-    assert_eq!(unpack_bits(&[0xff, 0b11], 10), &[BitValue::On; 10]);
+    assert_eq!(unpack_bits(&[0b1], 1), &[Coil::On]);
+    assert_eq!(unpack_bits(&[0b01], 2), &[Coil::On, Coil::Off]);
+    assert_eq!(unpack_bits(&[0b10], 2), &[Coil::Off, Coil::On]);
+    assert_eq!(unpack_bits(&[0b101], 3), &[Coil::On, Coil::Off, Coil::On]);
+    assert_eq!(unpack_bits(&[0xff, 0b11], 10), &[Coil::On; 10]);
 }
 
 #[test]
 fn test_pack_bits() {
     assert_eq!(pack_bits(&[]), &[]);
-    assert_eq!(pack_bits(&[BitValue::On]), &[1]);
-    assert_eq!(pack_bits(&[BitValue::Off]), &[0]);
-    assert_eq!(pack_bits(&[BitValue::On, BitValue::Off]), &[1]);
-    assert_eq!(pack_bits(&[BitValue::Off, BitValue::On]), &[2]);
-    assert_eq!(pack_bits(&[BitValue::On, BitValue::On]), &[3]);
-    assert_eq!(pack_bits(&[BitValue::On; 8]), &[255]);
-    assert_eq!(pack_bits(&[BitValue::On; 9]), &[255, 1]);
-    assert_eq!(pack_bits(&[BitValue::Off; 8]), &[0]);
-    assert_eq!(pack_bits(&[BitValue::Off; 9]), &[0, 0]);
+    assert_eq!(pack_bits(&[Coil::On]), &[1]);
+    assert_eq!(pack_bits(&[Coil::Off]), &[0]);
+    assert_eq!(pack_bits(&[Coil::On, Coil::Off]), &[1]);
+    assert_eq!(pack_bits(&[Coil::Off, Coil::On]), &[2]);
+    assert_eq!(pack_bits(&[Coil::On, Coil::On]), &[3]);
+    assert_eq!(pack_bits(&[Coil::On; 8]), &[255]);
+    assert_eq!(pack_bits(&[Coil::On; 9]), &[255, 1]);
+    assert_eq!(pack_bits(&[Coil::Off; 8]), &[0]);
+    assert_eq!(pack_bits(&[Coil::Off; 9]), &[0, 0]);
 }
 
 #[test]

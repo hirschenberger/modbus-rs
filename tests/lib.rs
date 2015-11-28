@@ -5,7 +5,7 @@ extern crate modbus;
 mod modbus_server_tests {
     use test_server::start_dummy_server;
     use modbus::tcp::Transport;
-    use modbus::{Client, BitValue};
+    use modbus::{Client, Coil, ScopedCoil, ScopedValue, CoilDropFunction};
 
     /// /////////////////////
     /// simple READ tests
@@ -14,7 +14,7 @@ mod modbus_server_tests {
         let (_s, port) = start_dummy_server();
         let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
         assert_eq!(trans.read_coils(0, 5).unwrap().len(), 5);
-        assert!(trans.read_coils(0, 5).unwrap().iter().all(|c| *c == BitValue::Off));
+        assert!(trans.read_coils(0, 5).unwrap().iter().all(|c| *c == Coil::Off));
     }
 
     #[test]
@@ -22,7 +22,7 @@ mod modbus_server_tests {
         let (_s, port) = start_dummy_server();
         let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
         assert_eq!(trans.read_discrete_inputs(0, 5).unwrap().len(), 5);
-        assert!(trans.read_discrete_inputs(0, 5).unwrap().iter().all(|c| *c == BitValue::Off));
+        assert!(trans.read_discrete_inputs(0, 5).unwrap().iter().all(|c| *c == Coil::Off));
     }
 
     #[test]
@@ -47,7 +47,7 @@ mod modbus_server_tests {
     fn test_write_single_coil() {
         let (_s, port) = start_dummy_server();
         let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
-        assert!(trans.write_single_coil(0, BitValue::On).is_ok());
+        assert!(trans.write_single_coil(0, Coil::On).is_ok());
     }
 
     #[test]
@@ -61,7 +61,7 @@ mod modbus_server_tests {
     fn test_write_multiple_coils() {
         let (_s, port) = start_dummy_server();
         let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
-        assert!(trans.write_multiple_coils(0, &[BitValue::On, BitValue::Off]).is_ok());
+        assert!(trans.write_multiple_coils(0, &[Coil::On, Coil::Off]).is_ok());
         // assert!(write_multiple_coils(&mut trans, 0, &[]).is_err());
     }
 
@@ -80,20 +80,20 @@ mod modbus_server_tests {
         let (_s, port) = start_dummy_server();
         let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
 
-        assert!(trans.write_single_coil(1, BitValue::On).is_ok());
-        assert!(trans.write_single_coil(3, BitValue::On).is_ok());
+        assert!(trans.write_single_coil(1, Coil::On).is_ok());
+        assert!(trans.write_single_coil(3, Coil::On).is_ok());
         assert_eq!(trans.read_coils(0, 5).unwrap(),
-                   vec![BitValue::Off, BitValue::On, BitValue::Off, BitValue::On, BitValue::Off]);
+                   vec![Coil::Off, Coil::On, Coil::Off, Coil::On, Coil::Off]);
         assert_eq!(trans.read_coils(1, 5).unwrap(),
-                   vec![BitValue::On, BitValue::Off, BitValue::On, BitValue::Off, BitValue::Off]);
-        assert!(trans.write_single_coil(10, BitValue::On).is_ok());
-        assert!(trans.write_single_coil(11, BitValue::On).is_ok());
+                   vec![Coil::On, Coil::Off, Coil::On, Coil::Off, Coil::Off]);
+        assert!(trans.write_single_coil(10, Coil::On).is_ok());
+        assert!(trans.write_single_coil(11, Coil::On).is_ok());
         assert_eq!(trans.read_coils(9, 4).unwrap(),
-                   vec![BitValue::Off, BitValue::On, BitValue::On, BitValue::Off]);
-        assert!(trans.write_single_coil(10, BitValue::Off).is_ok());
-        assert!(trans.write_single_coil(11, BitValue::Off).is_ok());
+                   vec![Coil::Off, Coil::On, Coil::On, Coil::Off]);
+        assert!(trans.write_single_coil(10, Coil::Off).is_ok());
+        assert!(trans.write_single_coil(11, Coil::Off).is_ok());
         assert_eq!(trans.read_coils(9, 4).unwrap(),
-                   vec![BitValue::Off, BitValue::Off, BitValue::Off, BitValue::Off]);
+                   vec![Coil::Off, Coil::Off, Coil::Off, Coil::Off]);
     }
 
     #[test]
@@ -114,11 +114,11 @@ mod modbus_server_tests {
     fn test_write_read_multiple_coils() {
         let (_s, port) = start_dummy_server();
         let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
-        assert!(trans.write_multiple_coils(0, &[BitValue::Off, BitValue::On]).is_ok());
+        assert!(trans.write_multiple_coils(0, &[Coil::Off, Coil::On]).is_ok());
         assert_eq!(trans.read_coils(0, 3).unwrap(),
-                   &[BitValue::Off, BitValue::On, BitValue::Off]);
-        assert!(trans.write_multiple_coils(0, &[BitValue::On; 9]).is_ok());
-        assert_eq!(trans.read_coils(0, 9).unwrap(), &[BitValue::On; 9]);
+                   &[Coil::Off, Coil::On, Coil::Off]);
+        assert!(trans.write_multiple_coils(0, &[Coil::On; 9]).is_ok());
+        assert_eq!(trans.read_coils(0, 9).unwrap(), &[Coil::On; 9]);
     }
 
     #[test]
@@ -142,5 +142,16 @@ mod modbus_server_tests {
         // (MODBUS_MAX_WRITE_COUNT - HEADER) / u16-bytes
         assert!(trans.write_multiple_registers(0, &[0xdead; (0x79 - 12) / 2]).is_ok());
         assert!(trans.write_multiple_registers(0, &[0xdead; (0x79 - 11) / 2]).is_err());
+    }
+
+    #[test]
+    fn test_scoped_coil() {
+        let (_s, port) = start_dummy_server();
+        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        {
+            let auto = trans.scoped_coil(0, Coil::On, CoilDropFunction::Off).unwrap();
+            assert_eq!(trans.read_coils(0, 1).unwrap(), vec![Coil::On]);
+        }
+
     }
 }
