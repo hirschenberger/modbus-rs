@@ -7,8 +7,7 @@ use byteorder::{BigEndian, WriteBytesExt};
 use bincode::rustc_serialize::{encode, decode};
 use bincode::SizeLimit;
 use enum_primitive::FromPrimitive;
-use {Function, ModbusResult, ModbusExceptionCode, ModbusError, Coil, binary, Client, ScopedCoil,
-     CoilDropFunction, RegisterDropFunction};
+use {Function, Result, ExceptionCode, Error, Coil, binary, Client};
 
 const MODBUS_PROTOCOL_TCP: u16 = 0x0000;
 const MODBUS_TCP_DEFAULT_PORT: u16 = 502;
@@ -77,7 +76,7 @@ impl Transport {
         self.tid
     }
 
-    fn read(self: &mut Self, fun: Function) -> ModbusResult<Vec<u8>> {
+    fn read(self: &mut Self, fun: Function) -> Result<Vec<u8>> {
         let packed_size = |v: u16| {
             v / 8 +
             if v % 8 > 0 {
@@ -95,7 +94,7 @@ impl Transport {
         };
 
         if count < 1 || count as usize > MODBUS_MAX_READ_COUNT {
-            return Err(ModbusError::InvalidData);
+            return Err(Error::InvalidData);
         }
 
         let header = Header::new(self, MODBUS_HEADER_SIZE as u16 + 6u16);
@@ -114,36 +113,36 @@ impl Transport {
                         try!(Transport::validate_response_code(&buff, &reply[..]));
                         Transport::get_reply_data(&reply, expected_bytes)
                     }
-                    Err(e) => Err(ModbusError::Io(e)),
+                    Err(e) => Err(Error::Io(e)),
                 }
             }
-            Err(e) => Err(ModbusError::Io(e)),
+            Err(e) => Err(Error::Io(e)),
         }
     }
 
-    fn validate_response_header(req: &Header, resp: &Header) -> ModbusResult<()> {
+    fn validate_response_header(req: &Header, resp: &Header) -> Result<()> {
         if req.tid != resp.tid || resp.pid != MODBUS_PROTOCOL_TCP {
-            Err(ModbusError::InvalidResponse)
+            Err(Error::InvalidResponse)
         } else {
             Ok(())
         }
     }
 
-    fn validate_response_code(req: &[u8], resp: &[u8]) -> ModbusResult<()> {
+    fn validate_response_code(req: &[u8], resp: &[u8]) -> Result<()> {
         if req[7] + 0x80 == resp[7] {
-            let code = ModbusExceptionCode::from_u8(resp[8]).unwrap();
-            Err(ModbusError::ModbusException(code))
+            let code = ExceptionCode::from_u8(resp[8]).unwrap();
+            Err(Error::Exception(code))
         } else if req[7] != resp[7] {
-            Err(ModbusError::InvalidResponse)
+            Err(Error::InvalidResponse)
         } else {
             Ok(())
         }
     }
 
-    fn get_reply_data(reply: &[u8], expected_bytes: usize) -> ModbusResult<Vec<u8>> {
+    fn get_reply_data(reply: &[u8], expected_bytes: usize) -> Result<Vec<u8>> {
         if reply[8] as usize != expected_bytes ||
            reply.len() != MODBUS_HEADER_SIZE + expected_bytes + 2 {
-            Err(ModbusError::InvalidData)
+            Err(Error::InvalidData)
         } else {
             let mut d = Vec::new();
             d.extend(reply[MODBUS_HEADER_SIZE + 2..].iter());
@@ -151,7 +150,7 @@ impl Transport {
         }
     }
 
-    fn write_single(self: &mut Self, fun: Function) -> ModbusResult<()> {
+    fn write_single(self: &mut Self, fun: Function) -> Result<()> {
         let (addr, value) = match fun {
             Function::WriteSingleCoil(a, v) => (a, v),
             Function::WriteSingleRegister(a, v) => (a, v),
@@ -165,7 +164,7 @@ impl Transport {
         self.write(&mut buff)
     }
 
-    fn write_multiple(self: &mut Self, fun: Function) -> ModbusResult<()> {
+    fn write_multiple(self: &mut Self, fun: Function) -> Result<()> {
         let (addr, quantity, values) = match fun {
             Function::WriteMultipleCoils(a, q, v) => (a, q, v),
             Function::WriteMultipleRegisters(a, q, v) => (a, q, v),
@@ -183,9 +182,9 @@ impl Transport {
         self.write(&mut buff)
     }
 
-    fn write(self: &mut Self, buff: &mut [u8]) -> ModbusResult<()> {
+    fn write(self: &mut Self, buff: &mut [u8]) -> Result<()> {
         if buff.len() < 1 || buff.len() > MODBUS_MAX_WRITE_COUNT {
-            return Err(ModbusError::InvalidData);
+            return Err(Error::InvalidData);
         }
         let header = Header::new(self, buff.len() as u16 + 1u16);
         let head_buff = try!(encode(&header, SizeLimit::Infinite));
@@ -202,10 +201,10 @@ impl Transport {
                         try!(Transport::validate_response_header(&header, &resp_hd));
                         Transport::validate_response_code(&buff, reply)
                     }
-                    Err(e) => Err(ModbusError::Io(e)),
+                    Err(e) => Err(Error::Io(e)),
                 }
             }
-            Err(e) => Err(ModbusError::Io(e)),
+            Err(e) => Err(Error::Io(e)),
         }
     }
 
@@ -219,47 +218,47 @@ impl Drop for Transport {
 
 impl Client for Transport {
     /// Read `count` bits starting at address `addr`.
-    fn read_coils(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<Coil>> {
+    fn read_coils(self: &mut Self, addr: u16, count: u16) -> Result<Vec<Coil>> {
         let bytes = try!(self.read(Function::ReadCoils(addr, count)));
         Ok(binary::unpack_bits(&bytes, count))
     }
 
     /// Read `count` input bits starting at address `addr`.
-    fn read_discrete_inputs(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<Coil>> {
+    fn read_discrete_inputs(self: &mut Self, addr: u16, count: u16) -> Result<Vec<Coil>> {
         let bytes = try!(self.read(Function::ReadDiscreteInputs(addr, count)));
         Ok(binary::unpack_bits(&bytes, count))
     }
 
     /// Read `count` 16bit registers starting at address `addr`.
-    fn read_holding_registers(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<u16>> {
+    fn read_holding_registers(self: &mut Self, addr: u16, count: u16) -> Result<Vec<u16>> {
         let bytes = try!(self.read(Function::ReadHoldingRegisters(addr, count)));
         binary::pack_bytes(&bytes[..])
     }
 
     /// Read `count` 16bit input registers starting at address `addr`.
-    fn read_input_registers(self: &mut Self, addr: u16, count: u16) -> ModbusResult<Vec<u16>> {
+    fn read_input_registers(self: &mut Self, addr: u16, count: u16) -> Result<Vec<u16>> {
         let bytes = try!(self.read(Function::ReadInputRegisters(addr, count)));
         binary::pack_bytes(&bytes[..])
     }
 
     /// Write a single coil (bit) to address `addr`.
-    fn write_single_coil(self: &mut Self, addr: u16, value: Coil) -> ModbusResult<()> {
+    fn write_single_coil(self: &mut Self, addr: u16, value: Coil) -> Result<()> {
         self.write_single(Function::WriteSingleCoil(addr, value.code()))
     }
 
     /// Write a single 16bit register to address `addr`.
-    fn write_single_register(self: &mut Self, addr: u16, value: u16) -> ModbusResult<()> {
+    fn write_single_register(self: &mut Self, addr: u16, value: u16) -> Result<()> {
         self.write_single(Function::WriteSingleRegister(addr, value))
     }
 
     /// Write a multiple coils (bits) starting at address `addr`.
-    fn write_multiple_coils(self: &mut Self, addr: u16, values: &[Coil]) -> ModbusResult<()> {
+    fn write_multiple_coils(self: &mut Self, addr: u16, values: &[Coil]) -> Result<()> {
         let bytes = binary::pack_bits(values);
         self.write_multiple(Function::WriteMultipleCoils(addr, values.len() as u16, &bytes[..]))
     }
 
     /// Write a multiple 16bit registers starting at address `addr`.
-    fn write_multiple_registers(self: &mut Self, addr: u16, values: &[u16]) -> ModbusResult<()> {
+    fn write_multiple_registers(self: &mut Self, addr: u16, values: &[u16]) -> Result<()> {
         let bytes = binary::unpack_bytes(values);
         self.write_multiple(Function::WriteMultipleRegisters(addr, values.len() as u16, &bytes[..]))
     }
