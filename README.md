@@ -12,23 +12,23 @@ Add `modbus` to your `Cargo.toml` dependencies:
 
 ```toml
 [dependencies]
-modbus = "0.2.0"
+modbus = "0.3.0"
 ```
 
 Import the `modbus` crate and use it's functions:
 
 ```rust
-use modbus::{Client, BitValue};
+use modbus::{Client, Coil};
 use modbus::tcp;
 
 let mut client = tcp::Transport::new("192.168.0.10");
 
-client.write_single_coil(1, BitValue::On).unwrap();
-client.write_single_coil(3, BitValue::On).unwrap();
+client.write_single_coil(1, Coil::On).unwrap();
+client.write_single_coil(3, Coil::On).unwrap();
 
 let res = client.read_coils(0, 5).unwrap();
 
-// res ==  vec![BitValue::Off, BitValue::On, BitValue::Off, BitValue::On, BitValue::Off]);
+// res ==  vec![Coil::Off, Coil::On, Coil::Off, Coil::On, Coil::Off]);
 ```
 See the [documentation](http://hirschenberger.github.io/modbus-rs/modbus/index.html) for usage examples and further reference.
 
