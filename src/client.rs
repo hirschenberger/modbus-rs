@@ -1,6 +1,4 @@
 use {Result, Coil};
-use tcp::Transport;
-use std::cell::RefCell;
 
 pub trait Client {
     fn read_discrete_inputs(&mut self, address: u16, quantity: u16) -> Result<Vec<Coil>>;

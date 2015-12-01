@@ -34,7 +34,7 @@ use bincode::rustc_serialize::{DecodingError, EncodingError};
 
 mod binary;
 mod client;
-mod scoped;
+pub mod scoped;
 
 /// The Modbus TCP backend implements a Modbus variant used for communication over TCP/IPv4 networks.
 pub mod tcp;

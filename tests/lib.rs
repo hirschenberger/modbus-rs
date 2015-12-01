@@ -5,7 +5,8 @@ extern crate modbus;
 mod modbus_server_tests {
     use test_server::start_dummy_server;
     use modbus::tcp::Transport;
-    use modbus::{Client, Coil, ScopedCoil, ScopedValue, CoilDropFunction};
+    use modbus::{Client, Coil};
+    use modbus::scoped::{ScopedCoil, ScopedRegister, CoilDropFunction, RegisterDropFunction};
 
     /// /////////////////////
     /// simple READ tests
@@ -148,10 +149,98 @@ mod modbus_server_tests {
     fn test_scoped_coil() {
         let (_s, port) = start_dummy_server();
         let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+
         {
-            let auto = trans.scoped_coil(0, Coil::On, CoilDropFunction::Off).unwrap();
-            assert_eq!(trans.read_coils(0, 1).unwrap(), vec![Coil::On]);
+            let mut auto = ScopedCoil::new(&mut trans, 0, CoilDropFunction::On).unwrap();
+            assert_eq!(auto.mut_transport().read_coils(0, 1).unwrap(),
+                       vec![Coil::Off]);
         }
+        assert_eq!(trans.read_coils(0, 1).unwrap(), vec![Coil::On]);
+
+        {
+            let mut auto = ScopedCoil::new(&mut trans, 0, CoilDropFunction::Off).unwrap();
+            assert_eq!(auto.mut_transport().read_coils(0, 1).unwrap(),
+                       vec![Coil::On]);
+        }
+        assert_eq!(trans.read_coils(0, 1).unwrap(), vec![Coil::Off]);
+
+        {
+            let mut auto = ScopedCoil::new(&mut trans, 0, CoilDropFunction::Toggle).unwrap();
+            assert_eq!(auto.mut_transport().read_coils(0, 1).unwrap(),
+                       vec![Coil::Off]);
+        }
+        assert_eq!(trans.read_coils(0, 1).unwrap(), vec![Coil::On]);
+
+        {
+            let mut auto = ScopedCoil::new(&mut trans, 0, CoilDropFunction::Toggle).unwrap();
+            assert_eq!(auto.mut_transport().read_coils(0, 1).unwrap(),
+                       vec![Coil::On]);
+        }
+        assert_eq!(trans.read_coils(0, 1).unwrap(), vec![Coil::Off]);
+
+        // coil address 1
+        {
+            let mut auto = ScopedCoil::new(&mut trans, 1, CoilDropFunction::Toggle).unwrap();
+            assert_eq!(auto.mut_transport().read_coils(1, 1).unwrap(),
+                       vec![Coil::Off]);
+        }
+        assert_eq!(trans.read_coils(1, 1).unwrap(), vec![Coil::On]);
+
+    }
+
+    #[test]
+    fn test_scoped_register() {
+        let (_s, port) = start_dummy_server();
+        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+
+        {
+            let mut auto = ScopedRegister::new(&mut trans, 0, RegisterDropFunction::Value(0xbeef))
+                               .unwrap();
+            assert_eq!(auto.mut_transport().read_holding_registers(0, 1).unwrap(),
+                       vec![0x0000]);
+        }
+        assert_eq!(trans.read_holding_registers(0, 1).unwrap(), vec![0xbeef]);
+
+        {
+            let mut auto = ScopedRegister::new(&mut trans, 0, RegisterDropFunction::Zero).unwrap();
+            assert_eq!(auto.mut_transport().read_holding_registers(0, 1).unwrap(),
+                       vec![0xbeef]);
+        }
+        assert_eq!(trans.read_holding_registers(0, 1).unwrap(), vec![0x0000]);
+
+        {
+            let mut auto = ScopedRegister::new(&mut trans, 0, RegisterDropFunction::Increment)
+                               .unwrap();
+            assert_eq!(auto.mut_transport().read_holding_registers(0, 1).unwrap(),
+                       vec![0x0000]);
+        }
+        assert_eq!(trans.read_holding_registers(0, 1).unwrap(), vec![0x0001]);
+
+        {
+            let mut auto = ScopedRegister::new(&mut trans, 0, RegisterDropFunction::Increment)
+                               .unwrap();
+            assert_eq!(auto.mut_transport().read_holding_registers(0, 1).unwrap(),
+                       vec![0x0001]);
+        }
+        assert_eq!(trans.read_holding_registers(0, 1).unwrap(), vec![0x0002]);
+
+        {
+            let mut auto = ScopedRegister::new(&mut trans, 0, RegisterDropFunction::Decrement)
+                               .unwrap();
+            assert_eq!(auto.mut_transport().read_holding_registers(0, 1).unwrap(),
+                       vec![0x0002]);
+        }
+        assert_eq!(trans.read_holding_registers(0, 1).unwrap(), vec![0x0001]);
+
+        {
+            let fun = |v| v + 0xbeee;
+            let mut auto = ScopedRegister::new(&mut trans, 0, RegisterDropFunction::Fun(&fun))
+                               .unwrap();
+            assert_eq!(auto.mut_transport().read_holding_registers(0, 1).unwrap(),
+                       vec![0x0001]);
+        }
+        assert_eq!(trans.read_holding_registers(0, 1).unwrap(), vec![0xbeef]);
+
 
     }
 }

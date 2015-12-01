@@ -1,7 +1,6 @@
 use std::io::{self, Write, Read, Cursor};
 use std::net::{TcpStream, Shutdown};
 use std::time::Duration;
-use std::cell::RefCell;
 use std::borrow::BorrowMut;
 use byteorder::{BigEndian, WriteBytesExt};
 use bincode::rustc_serialize::{encode, decode};
