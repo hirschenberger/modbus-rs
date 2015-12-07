@@ -12,7 +12,7 @@ Add `modbus` to your `Cargo.toml` dependencies:
 
 ```toml
 [dependencies]
-modbus = "0.3.0"
+modbus = "0.3.1"
 ```
 
 Import the `modbus` crate and use it's functions:
@@ -30,7 +30,8 @@ let res = client.read_coils(0, 5).unwrap();
 
 // res ==  vec![Coil::Off, Coil::On, Coil::Off, Coil::On, Coil::Off]);
 ```
-See the [documentation](http://hirschenberger.github.io/modbus-rs/modbus/index.html) for usage examples and further reference.
+See the [documentation](http://hirschenberger.github.io/modbus-rs/modbus/index.html) for usage examples and further reference and
+the [examples](https://github.com/hirschenberger/modbus-rs/tree/master/examples) directory for a commandline client application.
 
 
 ## License
