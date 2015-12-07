@@ -117,7 +117,7 @@ impl<'a> ScopedCoil<'a> {
         })
     }
 
-    pub fn mut_transport<'b>(&'b mut self) -> &'b mut Transport {
+    pub fn mut_transport(&mut self) -> &mut Transport {
         self.transport
     }
 }
@@ -159,7 +159,7 @@ impl<'a> ScopedRegister<'a> {
         })
     }
 
-    pub fn mut_transport<'b>(&'b mut self) -> &'b mut Transport {
+    pub fn mut_transport(&mut self) -> &mut Transport {
         self.transport
     }
 }
