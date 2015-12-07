@@ -30,6 +30,7 @@ extern crate bincode;
 extern crate byteorder;
 
 use std::io;
+use std::str::FromStr;
 use bincode::rustc_serialize::{DecodingError, EncodingError};
 
 mod binary;
@@ -101,7 +102,8 @@ pub enum Error {
     Exception(ExceptionCode),
     Io(io::Error),
     InvalidResponse,
-    InvalidData
+    InvalidData,
+    ParseCoilError
 }
 
 impl From<ExceptionCode> for Error {
@@ -150,6 +152,21 @@ impl Coil {
         match *self {
             Coil::On  => 0xff00,
             Coil::Off => 0x0000
+        }
+    }
+}
+
+impl FromStr for Coil {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Coil> {
+        if s == "On" {
+            Ok(Coil::On)
+        }
+        else if s == "Off" {
+            Ok(Coil::Off)
+        }
+        else {
+            Err(Error::ParseCoilError)
         }
     }
 }
