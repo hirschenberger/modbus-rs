@@ -13,7 +13,7 @@
 //! use modbus::tcp;
 //! use modbus::scoped::{ScopedCoil, CoilDropFunction};
 //! # if cfg!(feature = "modbus-server-tests") {
-//! # let (_s, port) = start_dummy_server();
+//! # let (_s, port) = start_dummy_server(Some(22222));
 //!
 //! // let port = 502;
 //! let mut client = tcp::Transport::new_with_port("127.0.0.1", port).unwrap();
@@ -38,10 +38,11 @@
 //! use modbus::tcp;
 //! use modbus::scoped::{ScopedRegister, RegisterDropFunction};
 //! # if cfg!(feature = "modbus-server-tests") {
-//! # let (_s, port) = start_dummy_server();
+//! # let (_s, port) = start_dummy_server(Some(22223));
 //!
 //! // let port = 502;
 //! let mut client = tcp::Transport::new_with_port("127.0.0.1", port).unwrap();
+//! client.write_single_register(10, 1);
 //! {
 //!     let fun = |v| v + 5;
 //!     let mut auto = ScopedRegister::new(&mut client, 10, RegisterDropFunction::Fun(&fun)).unwrap();

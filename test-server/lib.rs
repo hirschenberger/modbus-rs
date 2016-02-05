@@ -14,18 +14,21 @@ impl Drop for ChildKiller {
     }
 }
 
-pub fn start_dummy_server() -> (ChildKiller, u16) {
+pub fn start_dummy_server(port: Option<u16>) -> (ChildKiller, u16) {
     use std::process::{Command, Stdio};
     use std::thread::sleep;
     use std::time::Duration;
 
     // get and increment global port number for current test
-    let port = PORT.fetch_add(1, Ordering::SeqCst);
+    let p =  match port {
+        Some(p) => p,
+        None => PORT.fetch_add(1, Ordering::SeqCst) as u16
+    };
     let ck = ChildKiller(Command::new("./test-server/test-server")
-                             .arg(port.to_string())
+                             .arg(p.to_string())
                              .stdout(Stdio::null())
                              .spawn()
                              .unwrap_or_else(|e| panic!("failed to execute process: {}", e)));
     sleep(Duration::from_millis(500));
-    (ck, port as u16)
+    (ck, p)
 }

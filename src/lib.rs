@@ -10,7 +10,7 @@
 //! use modbus::{Client, Coil};
 //! use modbus::tcp;
 //! # if cfg!(feature = "modbus-server-tests") {
-//! # let (_s, port) = start_dummy_server();
+//! # let (_s, port) = start_dummy_server(Some(22221));
 //!
 //! // let port = 502;
 //! let mut client = tcp::Transport::new_with_port("127.0.0.1", port).unwrap();
