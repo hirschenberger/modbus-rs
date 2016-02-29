@@ -209,12 +209,10 @@ impl Transport {
         }
     }
 
-}
-
-impl Drop for Transport {
-    fn drop(&mut self) {
-        self.stream.shutdown(Shutdown::Both).unwrap();
+    pub fn close(self: &mut Self) -> Result<()> {
+        self.stream.shutdown(Shutdown::Both).map_err(Error::Io)
     }
+
 }
 
 impl Client for Transport {
