@@ -129,8 +129,10 @@ impl Transport {
 
     fn validate_response_code(req: &[u8], resp: &[u8]) -> Result<()> {
         if req[7] + 0x80 == resp[7] {
-            let code = ExceptionCode::from_u8(resp[8]).unwrap();
-            Err(Error::Exception(code))
+            match ExceptionCode::from_u8(resp[8]) {
+                Some(code) => Err(Error::Exception(code)),
+                None => Err(Error::InvalidResponse)
+            }
         } else if req[7] != resp[7] {
             Err(Error::InvalidResponse)
         } else {
