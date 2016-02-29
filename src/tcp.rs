@@ -89,7 +89,7 @@ impl Transport {
             Function::ReadDiscreteInputs(a, c) => (a, c, packed_size(c) as usize),
             Function::ReadHoldingRegisters(a, c) => (a, c, 2 * c as usize),
             Function::ReadInputRegisters(a, c) => (a, c, 2 * c as usize),
-            _ => panic!("Unexpected modbus function"),
+            _ => return Err(Error::InvalidFunction),
         };
 
         if count < 1 || count as usize > MODBUS_MAX_READ_COUNT {
@@ -155,7 +155,7 @@ impl Transport {
         let (addr, value) = match fun {
             Function::WriteSingleCoil(a, v) => (a, v),
             Function::WriteSingleRegister(a, v) => (a, v),
-            _ => panic!("Unexpected modbus function"),
+            _ => return Err(Error::InvalidFunction),
         };
 
         let mut buff = vec![0; MODBUS_HEADER_SIZE];  // Header gets filled in later
@@ -169,7 +169,7 @@ impl Transport {
         let (addr, quantity, values) = match fun {
             Function::WriteMultipleCoils(a, q, v) => (a, q, v),
             Function::WriteMultipleRegisters(a, q, v) => (a, q, v),
-            _ => panic!("Unexpected modbus function"),
+            _ => return Err(Error::InvalidFunction),
         };
 
         let mut buff = vec![0; MODBUS_HEADER_SIZE];  // Header gets filled in later
