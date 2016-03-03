@@ -103,6 +103,7 @@ pub enum Error {
     Io(io::Error),
     InvalidResponse,
     InvalidData,
+    InvalidFunction,
     ParseCoilError
 }
 
