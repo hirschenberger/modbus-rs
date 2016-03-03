@@ -31,7 +31,7 @@ extern crate byteorder;
 
 use std::io;
 use std::str::FromStr;
-use bincode::rustc_serialize::{DecodingError, EncodingError};
+use bincode::rustc_serialize as bcs;
 
 mod binary;
 mod client;
@@ -96,15 +96,28 @@ pub enum ExceptionCode {
 }
 }
 
+/// InvalidData reasons
+#[derive(Debug)]
+pub enum Reason {
+    UnexpectedReplySize,
+    BytecountNotEven,
+    SendBufferEmpty,
+    RecvBufferEmpty,
+    SendBufferTooBig,
+    DecodingError,
+    EncodingError,
+    InvalidByteorder
+}
+
 /// Combination of Modbus, IO and data corruption errors
 #[derive(Debug)]
 pub enum Error {
     Exception(ExceptionCode),
     Io(io::Error),
     InvalidResponse,
-    InvalidData,
+    InvalidData(Reason),
     InvalidFunction,
-    ParseCoilError
+    ParseCoilError,
 }
 
 impl From<ExceptionCode> for Error {
@@ -119,21 +132,21 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<DecodingError> for Error {
-    fn from(_err: DecodingError) -> Error {
-        Error::InvalidData
+impl From<bcs::DecodingError> for Error {
+    fn from(_err: bcs::DecodingError) -> Error {
+        Error::InvalidData(Reason::DecodingError)
     }
 }
 
-impl From<EncodingError> for Error {
-    fn from(_err: EncodingError) -> Error {
-        Error::InvalidData
+impl From<bcs::EncodingError> for Error {
+    fn from(_err: bcs::EncodingError) -> Error {
+        Error::InvalidData(Reason::EncodingError)
     }
 }
 
 impl From<byteorder::Error> for Error {
     fn from(_err: byteorder::Error) -> Error {
-        Error::InvalidData
+        Error::InvalidData(Reason::InvalidByteorder)
     }
 }
 

@@ -1,6 +1,6 @@
 use std::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt};
-use {Coil, Result, Error};
+use {Coil, Reason, Result, Error};
 
 pub fn unpack_bits(bytes: &[u8], count: u16) -> Vec<Coil> {
     let mut res = Vec::with_capacity(count as usize);
@@ -47,7 +47,7 @@ pub fn pack_bytes(bytes: &[u8]) -> Result<Vec<u16>> {
     let size = bytes.len();
     // check if we can create u16s from bytes by packing two u8s together without rest
     if size % 2 != 0 {
-        return Err(Error::InvalidData);
+        return Err(Error::InvalidData(Reason::BytecountNotEven));
     }
 
     let mut res = Vec::with_capacity(size / 2 + 1);

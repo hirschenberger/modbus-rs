@@ -6,7 +6,7 @@ use byteorder::{BigEndian, WriteBytesExt};
 use bincode::rustc_serialize::{encode, decode};
 use bincode::SizeLimit;
 use enum_primitive::FromPrimitive;
-use {Function, Result, ExceptionCode, Error, Coil, binary, Client};
+use {Function, Reason, Result, ExceptionCode, Error, Coil, binary, Client};
 
 const MODBUS_PROTOCOL_TCP: u16 = 0x0000;
 const MODBUS_TCP_DEFAULT_PORT: u16 = 502;
@@ -91,8 +91,12 @@ impl Transport {
             _ => return Err(Error::InvalidFunction),
         };
 
-        if count < 1 || count as usize > MODBUS_MAX_PACKET_SIZE {
-            return Err(Error::InvalidData);
+        if count < 1 {
+            return Err(Error::InvalidData(Reason::RecvBufferEmpty));
+        }
+
+        if count as usize > MODBUS_MAX_PACKET_SIZE {
+            return Err(Error::InvalidData(Reason::UnexpectedReplySize));
         }
 
         let header = Header::new(self, MODBUS_HEADER_SIZE as u16 + 6u16);
@@ -142,7 +146,7 @@ impl Transport {
     fn get_reply_data(reply: &[u8], expected_bytes: usize) -> Result<Vec<u8>> {
         if reply[8] as usize != expected_bytes ||
            reply.len() != MODBUS_HEADER_SIZE + expected_bytes + 2 {
-            Err(Error::InvalidData)
+            Err(Error::InvalidData(Reason::UnexpectedReplySize))
         } else {
             let mut d = Vec::new();
             d.extend(reply[MODBUS_HEADER_SIZE + 2..].iter());
@@ -183,9 +187,14 @@ impl Transport {
     }
 
     fn write(self: &mut Self, buff: &mut [u8]) -> Result<()> {
-        if buff.len() < 1 || buff.len() > MODBUS_MAX_PACKET_SIZE {
-            return Err(Error::InvalidData);
+        if buff.len() < 1 {
+            return Err(Error::InvalidData(Reason::SendBufferEmpty));
         }
+
+        if buff.len() > MODBUS_MAX_PACKET_SIZE {
+            return Err(Error::InvalidData(Reason::SendBufferTooBig));
+        }
+
         let header = Header::new(self, buff.len() as u16 + 1u16);
         let head_buff = try!(encode(&header, SizeLimit::Infinite));
         {
