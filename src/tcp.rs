@@ -11,8 +11,7 @@ use {Function, Result, ExceptionCode, Error, Coil, binary, Client};
 const MODBUS_PROTOCOL_TCP: u16 = 0x0000;
 const MODBUS_TCP_DEFAULT_PORT: u16 = 502;
 const MODBUS_HEADER_SIZE: usize = 7;
-const MODBUS_MAX_READ_COUNT: usize = 0x7d;
-const MODBUS_MAX_WRITE_COUNT: usize = 0x79;
+const MODBUS_MAX_PACKET_SIZE: usize = 260;
 
 #[derive(RustcEncodable, RustcDecodable)]
 #[repr(packed)]
@@ -92,7 +91,7 @@ impl Transport {
             _ => return Err(Error::InvalidFunction),
         };
 
-        if count < 1 || count as usize > MODBUS_MAX_READ_COUNT {
+        if count < 1 || count as usize > MODBUS_MAX_PACKET_SIZE {
             return Err(Error::InvalidData);
         }
 
@@ -131,7 +130,7 @@ impl Transport {
         if req[7] + 0x80 == resp[7] {
             match ExceptionCode::from_u8(resp[8]) {
                 Some(code) => Err(Error::Exception(code)),
-                None => Err(Error::InvalidResponse)
+                None => Err(Error::InvalidResponse),
             }
         } else if req[7] != resp[7] {
             Err(Error::InvalidResponse)
@@ -184,7 +183,7 @@ impl Transport {
     }
 
     fn write(self: &mut Self, buff: &mut [u8]) -> Result<()> {
-        if buff.len() < 1 || buff.len() > MODBUS_MAX_WRITE_COUNT {
+        if buff.len() < 1 || buff.len() > MODBUS_MAX_PACKET_SIZE {
             return Err(Error::InvalidData);
         }
         let header = Header::new(self, buff.len() as u16 + 1u16);

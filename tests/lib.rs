@@ -140,9 +140,8 @@ mod modbus_server_tests {
     fn test_write_too_big() {
         let (_s, port) = start_dummy_server(None);
         let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
-        // (MODBUS_MAX_WRITE_COUNT - HEADER) / u16-bytes
-        assert!(trans.write_multiple_registers(0, &[0xdead; (0x79 - 12) / 2]).is_ok());
-        assert!(trans.write_multiple_registers(0, &[0xdead; (0x79 - 11) / 2]).is_err());
+        assert!(trans.write_multiple_registers(0, &[0xdead; 123]).is_ok());
+        assert!(trans.write_multiple_registers(0, &[0xdead; 124]).is_err());
     }
 
     #[test]
