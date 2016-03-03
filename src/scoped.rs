@@ -89,18 +89,23 @@ pub struct ScopedCoil<'a> {
 
 impl<'a> Drop for ScopedCoil<'a> {
     fn drop(&mut self) {
-        // assume everything works as expected, we can't return an error
-        let value = self.transport.read_coils(self.address, 1).unwrap()[0];
-        let drop_value = match self.fun {
-            CoilDropFunction::On => Coil::On,
-            CoilDropFunction::Off => Coil::Off,
-            CoilDropFunction::Toggle => if value == Coil::On {
-                Coil::Off
-            } else {
-                Coil::On
-            },
-        };
-        self.transport.write_single_coil(self.address, drop_value).unwrap()
+        let _ = self.transport
+            .read_coils(self.address, 1)
+            .and_then(|value| match value.len() {
+                1 => {
+                    let drop_value = match self.fun {
+                        CoilDropFunction::On  => Coil::On,
+                        CoilDropFunction::Off => Coil::Off,
+                        CoilDropFunction::Toggle => match value[0] {
+                          Coil::On  => Coil::Off,
+                          Coil::Off => Coil::On
+                        }
+                    };
+                    let _ = self.transport.write_single_coil(self.address, drop_value);
+                    Ok(())
+                },
+                _ => Ok(())
+        });
     }
 }
 
@@ -133,16 +138,22 @@ pub struct ScopedRegister<'a> {
 
 impl<'a> Drop for ScopedRegister<'a> {
     fn drop(&mut self) {
-        // assume everything works as expected, we can't return an error
-        let value = self.transport.read_holding_registers(self.address, 1).unwrap()[0];
-        let drop_value = match self.fun {
-            RegisterDropFunction::Zero => 0u16,
-            RegisterDropFunction::Increment => value + 1,
-            RegisterDropFunction::Decrement => value - 1,
-            RegisterDropFunction::Value(v) => v,
-            RegisterDropFunction::Fun(f) => f(value),
-        };
-        self.transport.write_single_register(self.address, drop_value).unwrap()
+        let _ = self.transport
+            .read_holding_registers(self.address, 1)
+            .and_then(|value| match value.len() {
+                1 => {
+                    let drop_value = match self.fun {
+                        RegisterDropFunction::Zero => 0u16,
+                        RegisterDropFunction::Increment => value[0] + 1,
+                        RegisterDropFunction::Decrement => value[0] - 1,
+                        RegisterDropFunction::Value(v) => v,
+                        RegisterDropFunction::Fun(f) => f(value[0]),
+                    };
+                    let _ = self.transport.write_single_register(self.address, drop_value);
+                    Ok(())
+                },
+                _ => Ok(())
+        });
     }
 }
 
