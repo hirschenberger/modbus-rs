@@ -84,9 +84,9 @@ impl Transport {
             }
         };
         let (addr, count, expected_bytes) = match fun {
-            Function::ReadCoils(a, c) => (a, c, packed_size(c) as usize),
+            Function::ReadCoils(a, c) |
             Function::ReadDiscreteInputs(a, c) => (a, c, packed_size(c) as usize),
-            Function::ReadHoldingRegisters(a, c) => (a, c, 2 * c as usize),
+            Function::ReadHoldingRegisters(a, c) |
             Function::ReadInputRegisters(a, c) => (a, c, 2 * c as usize),
             _ => return Err(Error::InvalidFunction),
         };
@@ -156,7 +156,7 @@ impl Transport {
 
     fn write_single(self: &mut Self, fun: Function) -> Result<()> {
         let (addr, value) = match fun {
-            Function::WriteSingleCoil(a, v) => (a, v),
+            Function::WriteSingleCoil(a, v) |
             Function::WriteSingleRegister(a, v) => (a, v),
             _ => return Err(Error::InvalidFunction),
         };
@@ -170,7 +170,7 @@ impl Transport {
 
     fn write_multiple(self: &mut Self, fun: Function) -> Result<()> {
         let (addr, quantity, values) = match fun {
-            Function::WriteMultipleCoils(a, q, v) => (a, q, v),
+            Function::WriteMultipleCoils(a, q, v) |
             Function::WriteMultipleRegisters(a, q, v) => (a, q, v),
             _ => return Err(Error::InvalidFunction),
         };
