@@ -16,7 +16,6 @@ num = "0.1.27"
 rustc-serialize = "0.3.16"
 bincode = "0.4.0"
 byteorder = "0.4.2"
-clippy = {version = "0.0.*", optional = true}
 
 [dev-dependencies]
 modbus-test-server = {path = "test-server", version="0.0.*", feature=["modbus-test-server/modbus-server-tests"]}
