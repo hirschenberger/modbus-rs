@@ -136,10 +136,10 @@ impl Transport {
                 Some(code) => Err(Error::Exception(code)),
                 None => Err(Error::InvalidResponse),
             }
-        } else if req[7] != resp[7] {
-            Err(Error::InvalidResponse)
-        } else {
+        } else if req[7] == resp[7] {
             Ok(())
+        } else {
+            Err(Error::InvalidResponse)
         }
     }
 
@@ -149,7 +149,7 @@ impl Transport {
             Err(Error::InvalidData(Reason::UnexpectedReplySize))
         } else {
             let mut d = Vec::new();
-            d.extend(reply[MODBUS_HEADER_SIZE + 2..].iter());
+            d.extend_from_slice(&reply[MODBUS_HEADER_SIZE + 2..]);
             Ok(d)
         }
     }

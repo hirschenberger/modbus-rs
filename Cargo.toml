@@ -22,5 +22,5 @@ modbus-test-server = {path = "test-server", version="0.0.*", feature=["modbus-te
 clap = "1.5.3"
 
 [features]
-default=[]
+default=["modbus-server-tests"]
 modbus-server-tests = ["modbus-test-server/modbus-server-tests"]
