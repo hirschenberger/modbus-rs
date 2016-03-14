@@ -23,7 +23,7 @@ before_script:
 script:
 - ! 'travis-cargo build &&
 
-  travis-cargo test -- --features modbus-server-tests &&
+  travis-cargo test &&
 
   travis-cargo --only stable doc
 
