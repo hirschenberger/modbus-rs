@@ -37,12 +37,12 @@ pub mod scoped;
 
 /// The Modbus TCP backend implements a Modbus variant used for communication over TCP/IPv4 networks.
 pub mod tcp;
-pub use tcp::{Transport};
-pub use client::{Client};
+pub use tcp::Transport;
+pub use client::Client;
 
-type Address  = u16;
+type Address = u16;
 type Quantity = u16;
-type Value    = u16;
+type Value = u16;
 
 enum Function<'a> {
     ReadCoils(Address, Quantity),
@@ -51,27 +51,26 @@ enum Function<'a> {
     ReadInputRegisters(Address, Quantity),
     WriteSingleCoil(Address, Value),
     WriteSingleRegister(Address, Value),
-    WriteMultipleCoils(Address, Quantity, &'a[u8]),
-    WriteMultipleRegisters(Address, Quantity, &'a[u8])
+    WriteMultipleCoils(Address, Quantity, &'a [u8]),
+    WriteMultipleRegisters(Address, Quantity, &'a [u8]),
 }
 
 impl<'a> Function<'a> {
     fn code(&self) -> u8 {
         match *self {
-            Function::ReadCoils(_, _)                 => 0x01,
-            Function::ReadDiscreteInputs(_, _)        => 0x02,
-            Function::ReadHoldingRegisters(_, _)      => 0x03,
-            Function::ReadInputRegisters(_, _)        => 0x04,
-            Function::WriteSingleCoil(_, _)           => 0x05,
-            Function::WriteSingleRegister(_, _)       => 0x06,
-            Function::WriteMultipleCoils(_, _, _)     => 0x0f,
-            Function::WriteMultipleRegisters(_, _, _) => 0x10
+            Function::ReadCoils(_, _) => 0x01,
+            Function::ReadDiscreteInputs(_, _) => 0x02,
+            Function::ReadHoldingRegisters(_, _) => 0x03,
+            Function::ReadInputRegisters(_, _) => 0x04,
+            Function::WriteSingleCoil(_, _) => 0x05,
+            Function::WriteSingleRegister(_, _) => 0x06,
+            Function::WriteMultipleCoils(_, _, _) => 0x0f,
+            Function::WriteMultipleRegisters(_, _, _) => 0x10,
         }
-    //
-    // ReadExceptionStatus     = 0x07,
-    // ReportSlaveId           = 0x11,
-    // MaskWriteRegister       = 0x16,
-    // WriteAndReadRegisters   = 0x17
+        // ReadExceptionStatus     = 0x07,
+        // ReportSlaveId           = 0x11,
+        // MaskWriteRegister       = 0x16,
+        // WriteAndReadRegisters   = 0x17
     }
 }
 
@@ -103,7 +102,7 @@ pub enum Reason {
     SendBufferTooBig,
     DecodingError,
     EncodingError,
-    InvalidByteorder
+    InvalidByteorder,
 }
 
 /// Combination of Modbus, IO and data corruption errors
@@ -141,12 +140,6 @@ impl From<bcs::EncodingError> for Error {
     }
 }
 
-impl From<byteorder::Error> for Error {
-    fn from(_err: byteorder::Error) -> Error {
-        Error::InvalidData(Reason::InvalidByteorder)
-    }
-}
-
 /// Result type used to nofify success or failure in communication
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -155,14 +148,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Coil {
     On,
-    Off
+    Off,
 }
 
 impl Coil {
     fn code(&self) -> u16 {
         match *self {
-            Coil::On  => 0xff00,
-            Coil::Off => 0x0000
+            Coil::On => 0xff00,
+            Coil::Off => 0x0000,
         }
     }
 }
@@ -172,11 +165,9 @@ impl FromStr for Coil {
     fn from_str(s: &str) -> Result<Coil> {
         if s == "On" {
             Ok(Coil::On)
-        }
-        else if s == "Off" {
+        } else if s == "Off" {
             Ok(Coil::Off)
-        }
-        else {
+        } else {
             Err(Error::ParseCoilError)
         }
     }

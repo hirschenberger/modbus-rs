@@ -1,6 +1,6 @@
 [package]
 name = "modbus"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Falco Hirschenberger <falco.hirschenberger@gmail.com>"]
 repository = "https://github.com/hirschenberger/modbus-rs.git"
 homepage = "https://github.com/hirschenberger/modbus-rs.git"
@@ -14,12 +14,12 @@ keywords = ["modbus", "hardware"]
 enum_primitive = "0.1.0"
 num = "0.1.27"
 rustc-serialize = "0.3.16"
-bincode = "0.4.0"
-byteorder = "0.4.2"
+bincode = "0.5"
+byteorder = "0.5"
 
 [dev-dependencies]
-modbus-test-server = {path = "test-server", version="0.0.*", feature=["modbus-test-server/modbus-server-tests"]}
-clap = "1.5.3"
+modbus-test-server = {path = "test-server", version="0.0.*"}
+clap = "2.5"
 
 [features]
 default=["modbus-server-tests"]

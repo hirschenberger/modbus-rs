@@ -94,18 +94,20 @@ impl<'a> Drop for ScopedCoil<'a> {
             .and_then(|value| match value.len() {
                 1 => {
                     let drop_value = match self.fun {
-                        CoilDropFunction::On  => Coil::On,
+                        CoilDropFunction::On => Coil::On,
                         CoilDropFunction::Off => Coil::Off,
-                        CoilDropFunction::Toggle => match value[0] {
-                          Coil::On  => Coil::Off,
-                          Coil::Off => Coil::On
+                        CoilDropFunction::Toggle => {
+                            match value[0] {
+                                Coil::On => Coil::Off,
+                                Coil::Off => Coil::On,
+                            }
                         }
                     };
                     let _ = self.transport.write_single_coil(self.address, drop_value);
                     Ok(())
-                },
-                _ => Ok(())
-        });
+                }
+                _ => Ok(()),
+            });
     }
 }
 
@@ -151,9 +153,9 @@ impl<'a> Drop for ScopedRegister<'a> {
                     };
                     let _ = self.transport.write_single_register(self.address, drop_value);
                     Ok(())
-                },
-                _ => Ok(())
-        });
+                }
+                _ => Ok(()),
+            });
     }
 }
 

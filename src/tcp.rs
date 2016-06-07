@@ -220,7 +220,6 @@ impl Transport {
     pub fn close(self: &mut Self) -> Result<()> {
         self.stream.shutdown(Shutdown::Both).map_err(Error::Io)
     }
-
 }
 
 impl Client for Transport {
