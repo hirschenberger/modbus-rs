@@ -92,7 +92,7 @@ pub enum ExceptionCode {
 }
 }
 
-/// InvalidData reasons
+/// `InvalidData` reasons
 #[derive(Debug)]
 pub enum Reason {
     UnexpectedReplySize,

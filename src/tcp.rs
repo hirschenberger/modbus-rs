@@ -105,14 +105,14 @@ impl Transport {
         try!(buff.write_u16::<BigEndian>(addr));
         try!(buff.write_u16::<BigEndian>(count));
 
-        match self.stream.write_all(&buff[..]) {
+        match self.stream.write_all(&buff) {
             Ok(_s) => {
                 let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
                 match self.stream.read(&mut reply) {
                     Ok(_s) => {
                         let resp_hd = try!(decode(&reply[..MODBUS_HEADER_SIZE]));
                         try!(Transport::validate_response_header(&header, &resp_hd));
-                        try!(Transport::validate_response_code(&buff, &reply[..]));
+                        try!(Transport::validate_response_code(&buff, &reply));
                         Transport::get_reply_data(&reply, expected_bytes)
                     }
                     Err(e) => Err(Error::Io(e)),
@@ -199,16 +199,16 @@ impl Transport {
         let head_buff = try!(encode(&header, SizeLimit::Infinite));
         {
             let mut start = Cursor::new(buff.borrow_mut());
-            try!(start.write(&head_buff[..]));
+            try!(start.write(&head_buff));
         }
-        match self.stream.write_all(&buff[..]) {
+        match self.stream.write_all(buff) {
             Ok(_s) => {
                 let reply = &mut [0; 12];
                 match self.stream.read(reply) {
                     Ok(_s) => {
-                        let resp_hd = try!(decode(&reply[..MODBUS_HEADER_SIZE]));
+                        let resp_hd = try!(decode(reply));
                         try!(Transport::validate_response_header(&header, &resp_hd));
-                        Transport::validate_response_code(&buff, reply)
+                        Transport::validate_response_code(buff, reply)
                     }
                     Err(e) => Err(Error::Io(e)),
                 }
@@ -260,12 +260,12 @@ impl Client for Transport {
     /// Write a multiple coils (bits) starting at address `addr`.
     fn write_multiple_coils(self: &mut Self, addr: u16, values: &[Coil]) -> Result<()> {
         let bytes = binary::pack_bits(values);
-        self.write_multiple(Function::WriteMultipleCoils(addr, values.len() as u16, &bytes[..]))
+        self.write_multiple(Function::WriteMultipleCoils(addr, values.len() as u16, &bytes))
     }
 
     /// Write a multiple 16bit registers starting at address `addr`.
     fn write_multiple_registers(self: &mut Self, addr: u16, values: &[u16]) -> Result<()> {
         let bytes = binary::unpack_bytes(values);
-        self.write_multiple(Function::WriteMultipleRegisters(addr, values.len() as u16, &bytes[..]))
+        self.write_multiple(Function::WriteMultipleRegisters(addr, values.len() as u16, &bytes))
     }
 }
