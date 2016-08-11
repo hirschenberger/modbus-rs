@@ -23,14 +23,14 @@ before_script:
 script:
 - ! 'travis-cargo build &&
 
-  travis-cargo test --features modbus-server-tests &&
+  travis-cargo test -- --features modbus-server-tests &&
 
   travis-cargo --only stable doc
 
 '
 after_success:
 - travis-cargo --only stable doc-upload
-- travis-cargo coveralls --no-sudo --features modbus-server-tests
+- travis-cargo coveralls --no-sudo -- --features modbus-server-tests
 notifications:
   email:
     on_success: never
