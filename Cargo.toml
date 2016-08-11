@@ -1,6 +1,6 @@
 [package]
 name = "modbus"
-version = "0.4.1"
+version = "0.4.2"
 authors = ["Falco Hirschenberger <falco.hirschenberger@gmail.com>"]
 repository = "https://github.com/hirschenberger/modbus-rs.git"
 homepage = "https://github.com/hirschenberger/modbus-rs.git"
@@ -22,5 +22,5 @@ modbus-test-server = {path = "test-server", version="0.0.*"}
 clap = "2.5"
 
 [features]
-default=["modbus-server-tests"]
+default=[]
 modbus-server-tests = ["modbus-test-server/modbus-server-tests"]
