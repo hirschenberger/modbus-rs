@@ -16,7 +16,8 @@
 //! # let (_s, port) = start_dummy_server(Some(22222));
 //!
 //! // let port = 502;
-//! let mut client = tcp::Transport::new_with_port("127.0.0.1", port).unwrap();
+//! let uid = 1;
+//! let mut client = tcp::Transport::new_with_port("127.0.0.1", port, uid).unwrap();
 //! {
 //!    let mut auto = ScopedCoil::new(&mut client, 10, CoilDropFunction::On).unwrap();
 //!    assert_eq!(auto.mut_transport().read_coils(10, 1).unwrap(), vec![Coil::Off]);
@@ -41,7 +42,8 @@
 //! # let (_s, port) = start_dummy_server(Some(22223));
 //!
 //! // let port = 502;
-//! let mut client = tcp::Transport::new_with_port("127.0.0.1", port).unwrap();
+//! let uid = 1;
+//! let mut client = tcp::Transport::new_with_port("127.0.0.1", port, uid).unwrap();
 //! client.write_single_register(10, 1);
 //! {
 //!     let fun = |v| v + 5;

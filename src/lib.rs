@@ -13,7 +13,8 @@
 //! # let (_s, port) = start_dummy_server(Some(22221));
 //!
 //! // let port = 502;
-//! let mut client = tcp::Transport::new_with_port("127.0.0.1", port).unwrap();
+//! let uid = 1;
+//! let mut client = tcp::Transport::new_with_port("127.0.0.1", port, uid).unwrap();
 //! assert!(client.write_single_coil(0, Coil::On).is_ok());
 //! # }
 //! # }

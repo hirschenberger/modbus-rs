@@ -13,7 +13,7 @@ mod modbus_server_tests {
     #[test]
     fn test_read_coils() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
         assert_eq!(trans.read_coils(0, 5).unwrap().len(), 5);
         assert!(trans.read_coils(0, 5).unwrap().iter().all(|c| *c == Coil::Off));
     }
@@ -21,7 +21,7 @@ mod modbus_server_tests {
     #[test]
     fn test_read_discrete_inputs() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
         assert_eq!(trans.read_discrete_inputs(0, 5).unwrap().len(), 5);
         assert!(trans.read_discrete_inputs(0, 5).unwrap().iter().all(|c| *c == Coil::Off));
     }
@@ -29,7 +29,7 @@ mod modbus_server_tests {
     #[test]
     fn test_read_holding_registers() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
         assert_eq!(trans.read_holding_registers(0, 5).unwrap().len(), 5);
         assert!(trans.read_holding_registers(0, 5).unwrap().iter().all(|c| *c == 0));
     }
@@ -37,7 +37,7 @@ mod modbus_server_tests {
     #[test]
     fn test_read_input_registers() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
         assert_eq!(trans.read_input_registers(0, 5).unwrap().len(), 5);
         assert!(trans.read_input_registers(0, 5).unwrap().iter().all(|c| *c == 0));
     }
@@ -47,21 +47,21 @@ mod modbus_server_tests {
     #[test]
     fn test_write_single_coil() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
         assert!(trans.write_single_coil(0, Coil::On).is_ok());
     }
 
     #[test]
     fn test_write_single_register() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
         assert!(trans.write_single_register(0, 1).is_ok());
     }
 
     #[test]
     fn test_write_multiple_coils() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
         assert!(trans.write_multiple_coils(0, &[Coil::On, Coil::Off]).is_ok());
         // assert!(write_multiple_coils(&mut trans, 0, &[]).is_err());
     }
@@ -69,7 +69,7 @@ mod modbus_server_tests {
     #[test]
     fn test_write_multiple_registers() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
         assert!(trans.write_multiple_registers(0, &[0, 1, 2, 3]).is_ok());
         // assert!(write_multiple_registers(&mut trans, 0, &[]).is_err());
     }
@@ -79,7 +79,7 @@ mod modbus_server_tests {
     #[test]
     fn test_write_read_single_coils() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
 
         assert!(trans.write_single_coil(1, Coil::On).is_ok());
         assert!(trans.write_single_coil(3, Coil::On).is_ok());
@@ -100,7 +100,7 @@ mod modbus_server_tests {
     #[test]
     fn test_write_read_single_register() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
         assert!(trans.write_single_register(0, 23).is_ok());
         assert_eq!(trans.read_holding_registers(0, 1).unwrap(), vec![23]);
         assert!(trans.write_single_register(0, 0).is_ok());
@@ -114,7 +114,7 @@ mod modbus_server_tests {
     #[test]
     fn test_write_read_multiple_coils() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
         assert!(trans.write_multiple_coils(0, &[Coil::Off, Coil::On]).is_ok());
         assert_eq!(trans.read_coils(0, 3).unwrap(),
                    &[Coil::Off, Coil::On, Coil::Off]);
@@ -125,7 +125,7 @@ mod modbus_server_tests {
     #[test]
     fn test_write_read_multiple_registers() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
         // assert!(write_multiple_registers(&mut trans, 0, &[]).is_err());
         assert!(trans.write_multiple_registers(0, &[23]).is_ok());
         assert_eq!(trans.read_holding_registers(0, 1).unwrap(), &[23]);
@@ -139,7 +139,7 @@ mod modbus_server_tests {
     #[test]
     fn test_write_too_big() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
         assert!(trans.write_multiple_registers(0, &[0xdead; 123]).is_ok());
         assert!(trans.write_multiple_registers(0, &[0xdead; 124]).is_err());
     }
@@ -147,7 +147,7 @@ mod modbus_server_tests {
     #[test]
     fn test_scoped_coil() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
 
         {
             let mut auto = ScopedCoil::new(&mut trans, 0, CoilDropFunction::On).unwrap();
@@ -190,7 +190,7 @@ mod modbus_server_tests {
     #[test]
     fn test_scoped_register() {
         let (_s, port) = start_dummy_server(None);
-        let mut trans = Transport::new_with_port("127.0.0.1", port).unwrap();
+        let mut trans = Transport::new_with_port("127.0.0.1", port, 1).unwrap();
 
         {
             let mut auto = ScopedRegister::new(&mut trans, 0, RegisterDropFunction::Value(0xbeef))
