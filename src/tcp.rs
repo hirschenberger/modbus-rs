@@ -53,9 +53,9 @@ impl Transport {
             Ok(s) => {
                 // set some sane tcp socket options
                 let t = Duration::from_secs(5);
-                try!(s.set_read_timeout(Some(t)));
-                try!(s.set_write_timeout(Some(t)));
                 //                try!(s.set_nodelay(true));
+                s.set_read_timeout(Some(t))?;
+                s.set_write_timeout(Some(t))?;
                 //                try!(s.set_keepalive(None));
                 Ok(Transport {
                     tid: 0,
@@ -100,19 +100,19 @@ impl Transport {
         }
 
         let header = Header::new(self, MODBUS_HEADER_SIZE as u16 + 6u16);
-        let mut buff = try!(encode(&header, SizeLimit::Infinite));
-        try!(buff.write_u8(fun.code()));
-        try!(buff.write_u16::<BigEndian>(addr));
-        try!(buff.write_u16::<BigEndian>(count));
+        let mut buff = encode(&header, SizeLimit::Infinite)?;
+        buff.write_u8(fun.code())?;
+        buff.write_u16::<BigEndian>(addr)?;
+        buff.write_u16::<BigEndian>(count)?;
 
         match self.stream.write_all(&buff) {
             Ok(_s) => {
                 let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
                 match self.stream.read(&mut reply) {
                     Ok(_s) => {
-                        let resp_hd = try!(decode(&reply[..MODBUS_HEADER_SIZE]));
-                        try!(Transport::validate_response_header(&header, &resp_hd));
-                        try!(Transport::validate_response_code(&buff, &reply));
+                        let resp_hd = decode(&reply[..MODBUS_HEADER_SIZE])?;
+                        Transport::validate_response_header(&header, &resp_hd)?;
+                        Transport::validate_response_code(&buff, &reply)?;
                         Transport::get_reply_data(&reply, expected_bytes)
                     }
                     Err(e) => Err(Error::Io(e)),
@@ -162,9 +162,9 @@ impl Transport {
         };
 
         let mut buff = vec![0; MODBUS_HEADER_SIZE];  // Header gets filled in later
-        try!(buff.write_u8(fun.code()));
-        try!(buff.write_u16::<BigEndian>(addr));
-        try!(buff.write_u16::<BigEndian>(value));
+        buff.write_u8(fun.code())?;
+        buff.write_u16::<BigEndian>(addr)?;
+        buff.write_u16::<BigEndian>(value)?;
         self.write(&mut buff)
     }
 
@@ -176,12 +176,12 @@ impl Transport {
         };
 
         let mut buff = vec![0; MODBUS_HEADER_SIZE];  // Header gets filled in later
-        try!(buff.write_u8(fun.code()));
-        try!(buff.write_u16::<BigEndian>(addr));
-        try!(buff.write_u16::<BigEndian>(quantity));
-        try!(buff.write_u8(values.len() as u8));
+        buff.write_u8(fun.code())?;
+        buff.write_u16::<BigEndian>(addr)?;
+        buff.write_u16::<BigEndian>(quantity)?;
+        buff.write_u8(values.len() as u8)?;
         for v in values {
-            try!(buff.write_u8(*v));
+            buff.write_u8(*v)?;
         }
         self.write(&mut buff)
     }
@@ -196,18 +196,18 @@ impl Transport {
         }
 
         let header = Header::new(self, buff.len() as u16 + 1u16);
-        let head_buff = try!(encode(&header, SizeLimit::Infinite));
+        let head_buff = encode(&header, SizeLimit::Infinite)?;
         {
             let mut start = Cursor::new(buff.borrow_mut());
-            try!(start.write(&head_buff));
+            start.write(&head_buff)?;
         }
         match self.stream.write_all(buff) {
             Ok(_s) => {
                 let reply = &mut [0; 12];
                 match self.stream.read(reply) {
                     Ok(_s) => {
-                        let resp_hd = try!(decode(reply));
-                        try!(Transport::validate_response_header(&header, &resp_hd));
+                        let resp_hd = decode(reply)?;
+                        Transport::validate_response_header(&header, &resp_hd)?;
                         Transport::validate_response_code(buff, reply)
                     }
                     Err(e) => Err(Error::Io(e)),
@@ -225,25 +225,25 @@ impl Transport {
 impl Client for Transport {
     /// Read `count` bits starting at address `addr`.
     fn read_coils(self: &mut Self, addr: u16, count: u16) -> Result<Vec<Coil>> {
-        let bytes = try!(self.read(Function::ReadCoils(addr, count)));
+        let bytes = self.read(Function::ReadCoils(addr, count))?;
         Ok(binary::unpack_bits(&bytes, count))
     }
 
     /// Read `count` input bits starting at address `addr`.
     fn read_discrete_inputs(self: &mut Self, addr: u16, count: u16) -> Result<Vec<Coil>> {
-        let bytes = try!(self.read(Function::ReadDiscreteInputs(addr, count)));
+        let bytes = self.read(Function::ReadDiscreteInputs(addr, count))?;
         Ok(binary::unpack_bits(&bytes, count))
     }
 
     /// Read `count` 16bit registers starting at address `addr`.
     fn read_holding_registers(self: &mut Self, addr: u16, count: u16) -> Result<Vec<u16>> {
-        let bytes = try!(self.read(Function::ReadHoldingRegisters(addr, count)));
+        let bytes = self.read(Function::ReadHoldingRegisters(addr, count))?;
         binary::pack_bytes(&bytes[..])
     }
 
     /// Read `count` 16bit input registers starting at address `addr`.
     fn read_input_registers(self: &mut Self, addr: u16, count: u16) -> Result<Vec<u16>> {
-        let bytes = try!(self.read(Function::ReadInputRegisters(addr, count)));
+        let bytes = self.read(Function::ReadInputRegisters(addr, count))?;
         binary::pack_bytes(&bytes[..])
     }
 

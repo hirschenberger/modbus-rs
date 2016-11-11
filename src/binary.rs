@@ -53,7 +53,7 @@ pub fn pack_bytes(bytes: &[u8]) -> Result<Vec<u16>> {
     let mut res = Vec::with_capacity(size / 2 + 1);
     let mut rdr = Cursor::new(bytes);
     for _ in 0..size / 2 {
-        res.push(try!(rdr.read_u16::<BigEndian>()));
+        res.push(rdr.read_u16::<BigEndian>()?);
     }
     Ok(res)
 }
