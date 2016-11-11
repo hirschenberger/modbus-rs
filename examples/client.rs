@@ -10,7 +10,7 @@ fn main() {
         .author("Falco Hirschenberger <falco.hirschenberger@gmail.com>")
         .version(&crate_version!()[..])
         .about("Modbus Tcp client")
-        .args_from_usage("<SERVER> 'The IP address or hostname of the server'
+        .args_from_usage("<SERVER> 'The IP address or hostname of the server' <UID> 'Slave Unit ID'
                         \
                           --read-coils=[ADDR] [QUANTITY] 'Read QUANTITY coils from ADDR'
                         \
@@ -35,7 +35,10 @@ fn main() {
                           values to ADDR (use \"..\" to group them e.g. \"23, 24, 25\")'")
         .get_matches();
 
-    let mut client = tcp::Transport::new(matches.value_of("SERVER").unwrap()).unwrap();
+    let uid = matches.value_of("UID").unwrap().parse::<u8>()
+                .ok().expect("Invalid numeric value for Slave Unit ID!");
+
+    let mut client = tcp::Transport::new(matches.value_of("SERVER").unwrap(), uid).unwrap();
 
     if let Some(args) = matches.values_of("read-coils") {
         let args: Vec<&str> = args.collect();

@@ -42,13 +42,13 @@ pub struct Transport {
 
 impl Transport {
     /// Create a new context context object and connect it to `addr` on modbus-tcp default
-    /// port (502)
-    pub fn new(addr: &str) -> io::Result<Transport> {
-        Self::new_with_port(addr, MODBUS_TCP_DEFAULT_PORT)
+    /// port (502) and Unit ID `uid`
+    pub fn new(addr: &str, uid: u8) -> io::Result<Transport> {
+        Self::new_with_port(addr, MODBUS_TCP_DEFAULT_PORT, uid)
     }
 
-    /// Create a new context object and connect it to `addr` on port `port`
-    pub fn new_with_port(addr: &str, port: u16) -> io::Result<Transport> {
+    /// Create a new context object and connect it to `addr` on port `port` and Unit ID `uid`
+    pub fn new_with_port(addr: &str, port: u16, uid: u8) -> io::Result<Transport> {
         match TcpStream::connect((addr, port)) {
             Ok(s) => {
                 // set some sane tcp socket options
@@ -59,7 +59,7 @@ impl Transport {
                 //                try!(s.set_keepalive(None));
                 Ok(Transport {
                     tid: 0,
-                    uid: 1,
+                    uid: uid,
                     stream: s,
                 })
             }

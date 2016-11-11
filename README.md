@@ -22,7 +22,8 @@ Import the `modbus` crate and use it's functions:
 use modbus::{Client, Coil};
 use modbus::tcp;
 
-let mut client = tcp::Transport::new("192.168.0.10");
+let uid = 1; // Unit ID
+let mut client = tcp::Transport::new("192.168.0.10", uid);
 
 client.write_single_coil(1, Coil::On).unwrap();
 client.write_single_coil(3, Coil::On).unwrap();
