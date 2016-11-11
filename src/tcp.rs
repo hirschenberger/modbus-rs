@@ -53,9 +53,9 @@ impl Transport {
             Ok(s) => {
                 // set some sane tcp socket options
                 let t = Duration::from_secs(5);
-                //                try!(s.set_nodelay(true));
                 s.set_read_timeout(Some(t))?;
                 s.set_write_timeout(Some(t))?;
+                s.set_nodelay(true)?;
                 //                try!(s.set_keepalive(None));
                 Ok(Transport {
                     tid: 0,
