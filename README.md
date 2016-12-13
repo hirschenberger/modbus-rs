@@ -13,7 +13,7 @@ Add `modbus` to your `Cargo.toml` dependencies:
 
 ```toml
 [dependencies]
-modbus = "0.4"
+modbus = "0.5"
 ```
 
 Import the `modbus` crate and use it's functions:
