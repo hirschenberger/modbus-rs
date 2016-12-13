@@ -13,6 +13,30 @@ const MODBUS_TCP_DEFAULT_PORT: u16 = 502;
 const MODBUS_HEADER_SIZE: usize = 7;
 const MODBUS_MAX_PACKET_SIZE: usize = 260;
 
+/// Config structure for more control over the tcp socket settings
+#[derive(Clone, Copy)]
+pub struct Config {
+    /// The TCP port to use for communication (Default: `502`)
+    pub tcp_port: u16,
+    /// Timeout when reading from the TCP socket (Default: `infinite`)
+    pub tcp_read_timeout: Option<Duration>,
+    /// Timeout when writing to the TCP socket (Default: `infinite`)
+    pub tcp_write_timeout: Option<Duration>,
+    /// The modbus Unit Identifier used in the modbus layer (Default: `1`)
+    pub modbus_uid: u8,
+}
+
+impl Default for Config {
+    fn default() -> Config {
+        Config {
+            tcp_port: MODBUS_TCP_DEFAULT_PORT,
+            tcp_read_timeout: None,
+            tcp_write_timeout: None,
+            modbus_uid: 1,
+        }
+    }
+}
+
 #[derive(RustcEncodable, RustcDecodable)]
 #[repr(packed)]
 struct Header {
@@ -44,22 +68,19 @@ impl Transport {
     /// Create a new context context object and connect it to `addr` on modbus-tcp default
     /// port (502)
     pub fn new(addr: &str) -> io::Result<Transport> {
-        Self::new_with_port(addr, MODBUS_TCP_DEFAULT_PORT)
+        Self::new_with_cfg(addr, Config::default())
     }
 
     /// Create a new context object and connect it to `addr` on port `port`
-    pub fn new_with_port(addr: &str, port: u16) -> io::Result<Transport> {
-        match TcpStream::connect((addr, port)) {
+    pub fn new_with_cfg(addr: &str, cfg: Config) -> io::Result<Transport> {
+        match TcpStream::connect((addr, cfg.tcp_port)) {
             Ok(s) => {
-                // set some sane tcp socket options
-                let t = Duration::from_secs(5);
-                s.set_read_timeout(Some(t))?;
-                s.set_write_timeout(Some(t))?;
+                s.set_read_timeout(cfg.tcp_read_timeout)?;
+                s.set_write_timeout(cfg.tcp_write_timeout)?;
                 s.set_nodelay(true)?;
-                //                try!(s.set_keepalive(None));
                 Ok(Transport {
                     tid: 0,
-                    uid: 1,
+                    uid: cfg.modbus_uid,
                     stream: s,
                 })
             }

@@ -12,8 +12,9 @@
 //! # if cfg!(feature = "modbus-server-tests") {
 //! # let (_s, port) = start_dummy_server(Some(22221));
 //!
-//! // let port = 502;
-//! let mut client = tcp::Transport::new_with_port("127.0.0.1", port).unwrap();
+//! let mut cfg = tcp::Config::default();
+//! # cfg.tcp_port = port;
+//! let mut client = tcp::Transport::new_with_cfg("127.0.0.1", cfg).unwrap();
 //! assert!(client.write_single_coil(0, Coil::On).is_ok());
 //! # }
 //! # }
@@ -38,6 +39,7 @@ pub mod scoped;
 /// The Modbus TCP backend implements a Modbus variant used for communication over TCP/IPv4 networks.
 pub mod tcp;
 pub use tcp::Transport;
+pub use tcp::Config;
 pub use client::Client;
 
 type Address = u16;
