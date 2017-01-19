@@ -31,7 +31,7 @@ use std::io;
 use std::str::FromStr;
 use bincode::rustc_serialize as bcs;
 
-mod binary;
+pub mod binary;
 mod client;
 
 pub mod scoped;
