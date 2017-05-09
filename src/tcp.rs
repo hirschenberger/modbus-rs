@@ -3,8 +3,7 @@ use std::net::{TcpStream, Shutdown};
 use std::time::Duration;
 use std::borrow::BorrowMut;
 use byteorder::{BigEndian, WriteBytesExt};
-use bincode::rustc_serialize::{encode, decode};
-use bincode::SizeLimit;
+use bincode::{serialize, deserialize, Infinite};
 use enum_primitive::FromPrimitive;
 use {Function, Reason, Result, ExceptionCode, Error, Coil, binary, Client};
 
@@ -37,7 +36,7 @@ impl Default for Config {
     }
 }
 
-#[derive(RustcEncodable, RustcDecodable)]
+#[derive(Serialize, Deserialize)]
 #[repr(packed)]
 struct Header {
     tid: u16,
@@ -121,7 +120,7 @@ impl Transport {
         }
 
         let header = Header::new(self, MODBUS_HEADER_SIZE as u16 + 6u16);
-        let mut buff = encode(&header, SizeLimit::Infinite)?;
+        let mut buff = serialize(&header, Infinite)?;
         buff.write_u8(fun.code())?;
         buff.write_u16::<BigEndian>(addr)?;
         buff.write_u16::<BigEndian>(count)?;
@@ -131,7 +130,7 @@ impl Transport {
                 let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
                 match self.stream.read(&mut reply) {
                     Ok(_s) => {
-                        let resp_hd = decode(&reply[..MODBUS_HEADER_SIZE])?;
+                        let resp_hd = deserialize(&reply[..MODBUS_HEADER_SIZE])?;
                         Transport::validate_response_header(&header, &resp_hd)?;
                         Transport::validate_response_code(&buff, &reply)?;
                         Transport::get_reply_data(&reply, expected_bytes)
@@ -217,7 +216,7 @@ impl Transport {
         }
 
         let header = Header::new(self, buff.len() as u16 + 1u16);
-        let head_buff = encode(&header, SizeLimit::Infinite)?;
+        let head_buff = serialize(&header, Infinite)?;
         {
             let mut start = Cursor::new(buff.borrow_mut());
             start.write(&head_buff)?;
@@ -227,7 +226,7 @@ impl Transport {
                 let reply = &mut [0; 12];
                 match self.stream.read(reply) {
                     Ok(_s) => {
-                        let resp_hd = decode(reply)?;
+                        let resp_hd = deserialize(reply)?;
                         Transport::validate_response_header(&header, &resp_hd)?;
                         Transport::validate_response_code(buff, reply)
                     }
