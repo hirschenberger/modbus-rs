@@ -23,10 +23,6 @@
 #[macro_use]
 extern crate enum_primitive;
 extern crate num;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate bincode;
 extern crate byteorder;
 
 use std::io;
@@ -129,20 +125,6 @@ impl From<ExceptionCode> for Error {
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
         Error::Io(err)
-    }
-}
-
-impl From<bincode::Error> for Error {
-    fn from(err: bincode::Error) -> Error {
-        use bincode::ErrorKind::*;
-        use Error::InvalidData;
-        match *err {
-            InvalidEncoding { .. } => InvalidData(Reason::EncodingError),
-            IoError(err) => Error::Io(err),
-            SizeLimit => InvalidData(Reason::Custom("SizeLimit".into())),
-            SequenceMustHaveLength => InvalidData(Reason::Custom("SquenceMustHaveLength".into())),
-            Custom(msg) => InvalidData(Reason::Custom(msg)),
-        }
     }
 }
 
