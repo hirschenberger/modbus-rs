@@ -13,10 +13,7 @@ keywords = ["modbus", "hardware"]
 [dependencies]
 enum_primitive = "0.1"
 num = "0.1"
-serde = "1.0"
-serde_derive = "1.0"
-bincode = "0.8"
-byteorder = "1.0"
+byteorder = "1.1"
 
 [dev-dependencies]
 modbus-test-server = {path = "test-server", version="0.0.*"}

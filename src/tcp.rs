@@ -2,8 +2,7 @@ use std::io::{self, Write, Read, Cursor};
 use std::net::{TcpStream, Shutdown};
 use std::time::Duration;
 use std::borrow::BorrowMut;
-use byteorder::{BigEndian, WriteBytesExt};
-use bincode::{serialize, deserialize, Infinite};
+use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
 use enum_primitive::FromPrimitive;
 use {Function, Reason, Result, ExceptionCode, Error, Coil, binary, Client};
 
@@ -36,8 +35,7 @@ impl Default for Config {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[repr(packed)]
+#[derive(Debug, PartialEq)]
 struct Header {
     tid: u16,
     pid: u16,
@@ -53,6 +51,25 @@ impl Header {
             len: len - MODBUS_HEADER_SIZE as u16,
             uid: transport.uid,
         }
+    }
+
+    fn pack(&self) -> Result<Vec<u8>> {
+        let mut buff = vec![];
+        buff.write_u16::<BigEndian>(self.tid)?;
+        buff.write_u16::<BigEndian>(self.pid)?;
+        buff.write_u16::<BigEndian>(self.len)?;
+        buff.write_u8(self.uid)?;
+        Ok(buff)
+    }
+
+    fn unpack(buff: &[u8]) -> Result<Header> {
+        let mut rdr = Cursor::new(buff);
+        Ok(Header {
+            tid: rdr.read_u16::<BigEndian>()?,
+            pid: rdr.read_u16::<BigEndian>()?,
+            len: rdr.read_u16::<BigEndian>()?,
+            uid: rdr.read_u8()?
+        })
     }
 }
 
@@ -120,7 +137,7 @@ impl Transport {
         }
 
         let header = Header::new(self, MODBUS_HEADER_SIZE as u16 + 6u16);
-        let mut buff = serialize(&header, Infinite)?;
+        let mut buff = header.pack()?;
         buff.write_u8(fun.code())?;
         buff.write_u16::<BigEndian>(addr)?;
         buff.write_u16::<BigEndian>(count)?;
@@ -130,7 +147,7 @@ impl Transport {
                 let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
                 match self.stream.read(&mut reply) {
                     Ok(_s) => {
-                        let resp_hd = deserialize(&reply[..MODBUS_HEADER_SIZE])?;
+                        let resp_hd = Header::unpack(&reply[..MODBUS_HEADER_SIZE])?;
                         Transport::validate_response_header(&header, &resp_hd)?;
                         Transport::validate_response_code(&buff, &reply)?;
                         Transport::get_reply_data(&reply, expected_bytes)
@@ -216,7 +233,7 @@ impl Transport {
         }
 
         let header = Header::new(self, buff.len() as u16 + 1u16);
-        let head_buff = serialize(&header, Infinite)?;
+        let head_buff = header.pack()?;
         {
             let mut start = Cursor::new(buff.borrow_mut());
             start.write(&head_buff)?;
@@ -226,7 +243,7 @@ impl Transport {
                 let reply = &mut [0; 12];
                 match self.stream.read(reply) {
                     Ok(_s) => {
-                        let resp_hd = deserialize(reply)?;
+                        let resp_hd = Header::unpack(reply)?;
                         Transport::validate_response_header(&header, &resp_hd)?;
                         Transport::validate_response_code(buff, reply)
                     }
@@ -287,5 +304,22 @@ impl Client for Transport {
     fn write_multiple_registers(self: &mut Self, addr: u16, values: &[u16]) -> Result<()> {
         let bytes = binary::unpack_bytes(values);
         self.write_multiple(Function::WriteMultipleRegisters(addr, values.len() as u16, &bytes))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn serialize_header(){
+        let header = Header{tid: 12816, pid: 3930, len: 99, uid: 68 };
+        let serialized = header.pack().unwrap();
+        let deserialized = Header::unpack(&vec![50, 16, 15, 90, 0, 99, 68]).unwrap();
+        let re_deserialized = Header::unpack(&serialized).unwrap();
+        assert_eq!(serialized, vec![50, 16, 15, 90, 0, 99, 68]);
+        assert_eq!(deserialized, header);
+        assert_eq!(re_deserialized, header);
     }
 }

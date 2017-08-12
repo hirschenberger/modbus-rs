@@ -23,13 +23,10 @@
 #[macro_use]
 extern crate enum_primitive;
 extern crate num;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate bincode;
 extern crate byteorder;
 
 use std::io;
+use std::fmt;
 use std::str::FromStr;
 
 pub mod binary;
@@ -120,6 +117,46 @@ pub enum Error {
     ParseCoilError,
 }
 
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        use Error::*;
+
+        match *self {
+            Exception(ref code) => write!(f, "modbus exception: {:?}", code),
+            Io(ref err) => write!(f, "I/O error: {}", err),
+            InvalidResponse => write!(f, "invalid response"),
+            InvalidData(ref reason) => write!(f, "invalid data: {:?}", reason),
+            InvalidFunction => write!(f, "invalid modbus function"),
+            ParseCoilError => write!(f, "parse coil could not be parsed"),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn description(&self) -> &str {
+
+        use Error::*;
+
+        match *self {
+            Exception(_) => "modbus exception",
+            Io(_) => "I/O error",
+            InvalidResponse => "invalid response",
+            InvalidData(_) => "invalid data",
+            InvalidFunction => "invalid modbus function",
+            ParseCoilError => "parse coil could not be parsed",
+        }
+    }
+
+    fn cause(&self) -> Option<&std::error::Error> {
+
+        match *self {
+            Error::Io(ref err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
 impl From<ExceptionCode> for Error {
     fn from(err: ExceptionCode) -> Error {
         Error::Exception(err)
@@ -129,20 +166,6 @@ impl From<ExceptionCode> for Error {
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
         Error::Io(err)
-    }
-}
-
-impl From<bincode::Error> for Error {
-    fn from(err: bincode::Error) -> Error {
-        use bincode::ErrorKind::*;
-        use Error::InvalidData;
-        match *err {
-            InvalidEncoding { .. } => InvalidData(Reason::EncodingError),
-            IoError(err) => Error::Io(err),
-            SizeLimit => InvalidData(Reason::Custom("SizeLimit".into())),
-            SequenceMustHaveLength => InvalidData(Reason::Custom("SquenceMustHaveLength".into())),
-            Custom(msg) => InvalidData(Reason::Custom(msg)),
-        }
     }
 }
 
