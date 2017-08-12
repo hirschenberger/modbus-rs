@@ -26,6 +26,7 @@ extern crate num;
 extern crate byteorder;
 
 use std::io;
+use std::fmt;
 use std::str::FromStr;
 
 pub mod binary;
@@ -114,6 +115,46 @@ pub enum Error {
     InvalidData(Reason),
     InvalidFunction,
     ParseCoilError,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        use Error::*;
+
+        match *self {
+            Exception(ref code) => write!(f, "modbus exception: {:?}", code),
+            Io(ref err) => write!(f, "I/O error: {}", err),
+            InvalidResponse => write!(f, "invalid response"),
+            InvalidData(ref reason) => write!(f, "invalid data: {:?}", reason),
+            InvalidFunction => write!(f, "invalid modbus function"),
+            ParseCoilError => write!(f, "parse coil could not be parsed"),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn description(&self) -> &str {
+
+        use Error::*;
+
+        match *self {
+            Exception(_) => "modbus exception",
+            Io(_) => "I/O error",
+            InvalidResponse => "invalid response",
+            InvalidData(_) => "invalid data",
+            InvalidFunction => "invalid modbus function",
+            ParseCoilError => "parse coil could not be parsed",
+        }
+    }
+
+    fn cause(&self) -> Option<&std::error::Error> {
+
+        match *self {
+            Error::Io(ref err) => Some(err),
+            _ => None,
+        }
+    }
 }
 
 impl From<ExceptionCode> for Error {
