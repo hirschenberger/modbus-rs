@@ -236,7 +236,7 @@ impl Transport {
         let head_buff = header.pack()?;
         {
             let mut start = Cursor::new(buff.borrow_mut());
-            start.write(&head_buff)?;
+            start.write_all(&head_buff)?;
         }
         match self.stream.write_all(buff) {
             Ok(_s) => {
