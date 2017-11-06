@@ -111,7 +111,7 @@ impl Transport {
         self.tid
     }
 
-    fn read(self: &mut Self, fun: Function) -> Result<Vec<u8>> {
+    fn read(self: &mut Self, fun: &Function) -> Result<Vec<u8>> {
         let packed_size = |v: u16| {
             v / 8 +
             if v % 8 > 0 {
@@ -120,7 +120,7 @@ impl Transport {
                 0
             }
         };
-        let (addr, count, expected_bytes) = match fun {
+        let (addr, count, expected_bytes) = match *fun {
             Function::ReadCoils(a, c) |
             Function::ReadDiscreteInputs(a, c) => (a, c, packed_size(c) as usize),
             Function::ReadHoldingRegisters(a, c) |
@@ -191,8 +191,8 @@ impl Transport {
         }
     }
 
-    fn write_single(self: &mut Self, fun: Function) -> Result<()> {
-        let (addr, value) = match fun {
+    fn write_single(self: &mut Self, fun: &Function) -> Result<()> {
+        let (addr, value) = match *fun {
             Function::WriteSingleCoil(a, v) |
             Function::WriteSingleRegister(a, v) => (a, v),
             _ => return Err(Error::InvalidFunction),
@@ -205,8 +205,8 @@ impl Transport {
         self.write(&mut buff)
     }
 
-    fn write_multiple(self: &mut Self, fun: Function) -> Result<()> {
-        let (addr, quantity, values) = match fun {
+    fn write_multiple(self: &mut Self, fun: &Function) -> Result<()> {
+        let (addr, quantity, values) = match *fun {
             Function::WriteMultipleCoils(a, q, v) |
             Function::WriteMultipleRegisters(a, q, v) => (a, q, v),
             _ => return Err(Error::InvalidFunction),
@@ -262,48 +262,48 @@ impl Transport {
 impl Client for Transport {
     /// Read `count` bits starting at address `addr`.
     fn read_coils(self: &mut Self, addr: u16, count: u16) -> Result<Vec<Coil>> {
-        let bytes = self.read(Function::ReadCoils(addr, count))?;
+        let bytes = self.read(&Function::ReadCoils(addr, count))?;
         Ok(binary::unpack_bits(&bytes, count))
     }
 
     /// Read `count` input bits starting at address `addr`.
     fn read_discrete_inputs(self: &mut Self, addr: u16, count: u16) -> Result<Vec<Coil>> {
-        let bytes = self.read(Function::ReadDiscreteInputs(addr, count))?;
+        let bytes = self.read(&Function::ReadDiscreteInputs(addr, count))?;
         Ok(binary::unpack_bits(&bytes, count))
     }
 
     /// Read `count` 16bit registers starting at address `addr`.
     fn read_holding_registers(self: &mut Self, addr: u16, count: u16) -> Result<Vec<u16>> {
-        let bytes = self.read(Function::ReadHoldingRegisters(addr, count))?;
+        let bytes = self.read(&Function::ReadHoldingRegisters(addr, count))?;
         binary::pack_bytes(&bytes[..])
     }
 
     /// Read `count` 16bit input registers starting at address `addr`.
     fn read_input_registers(self: &mut Self, addr: u16, count: u16) -> Result<Vec<u16>> {
-        let bytes = self.read(Function::ReadInputRegisters(addr, count))?;
+        let bytes = self.read(&Function::ReadInputRegisters(addr, count))?;
         binary::pack_bytes(&bytes[..])
     }
 
     /// Write a single coil (bit) to address `addr`.
     fn write_single_coil(self: &mut Self, addr: u16, value: Coil) -> Result<()> {
-        self.write_single(Function::WriteSingleCoil(addr, value.code()))
+        self.write_single(&Function::WriteSingleCoil(addr, value.code()))
     }
 
     /// Write a single 16bit register to address `addr`.
     fn write_single_register(self: &mut Self, addr: u16, value: u16) -> Result<()> {
-        self.write_single(Function::WriteSingleRegister(addr, value))
+        self.write_single(&Function::WriteSingleRegister(addr, value))
     }
 
     /// Write a multiple coils (bits) starting at address `addr`.
     fn write_multiple_coils(self: &mut Self, addr: u16, values: &[Coil]) -> Result<()> {
         let bytes = binary::pack_bits(values);
-        self.write_multiple(Function::WriteMultipleCoils(addr, values.len() as u16, &bytes))
+        self.write_multiple(&Function::WriteMultipleCoils(addr, values.len() as u16, &bytes))
     }
 
     /// Write a multiple 16bit registers starting at address `addr`.
     fn write_multiple_registers(self: &mut Self, addr: u16, values: &[u16]) -> Result<()> {
         let bytes = binary::unpack_bytes(values);
-        self.write_multiple(Function::WriteMultipleRegisters(addr, values.len() as u16, &bytes))
+        self.write_multiple(&Function::WriteMultipleRegisters(addr, values.len() as u16, &bytes))
     }
 }
 
