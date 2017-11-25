@@ -20,7 +20,7 @@
 //! let mut client = tcp::Transport::new_with_cfg("127.0.0.1", cfg).unwrap();
 //! {
 //!    let mut auto = ScopedCoil::new(&mut client, 10, CoilDropFunction::On).unwrap();
-//!    assert_eq!(auto.mut_transport().read_coils(10, 1).unwrap(), vec![Coil::Off]);
+//!    assert_eq!(auto.test().unwrap(), Coil::Off);
 //! }
 //! assert_eq!(client.read_coils(10, 1).unwrap(), vec![Coil::On]);
 //! # }
@@ -55,7 +55,7 @@
 //! # }
 //! ```
 
-use {Coil, Transport, Client, Result};
+use {Coil, Transport, Client, Result, Error};
 
 /// Action to perform when the `ScopedCoil` is dropped.
 pub enum CoilDropFunction {
@@ -125,6 +125,38 @@ impl<'a> ScopedCoil<'a> {
             fun: fun,
             transport: transport,
         })
+    }
+
+    pub fn test(&mut self) -> Result<Coil> {
+      match self.transport.read_discrete_inputs(self.address, 1){
+        Err(err) => Err(err),
+        Ok(res) => {
+          match res.len() {
+            1 => Ok(res[0]),
+            _ => Err(Error::InvalidResponse)
+          }
+        }
+      }
+    }
+
+    pub fn set(&mut self) -> Result<()> {
+      self.transport.write_single_coil(self.address, Coil::On)
+    }
+
+    pub fn clear(&mut self) -> Result<()> {
+      self.transport.write_single_coil(self.address, Coil::Off)
+    }
+
+    pub fn toggle(&mut self) -> Result<()> {
+      match self.test() {
+        Err(err) => Err(err),
+        Ok(res) => {
+          match res {
+            Coil::On => self.clear(),
+            Coil::Off => self.set()
+          }
+        }
+      }
     }
 
     pub fn mut_transport(&mut self) -> &mut Transport {
