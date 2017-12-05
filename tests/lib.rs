@@ -1,6 +1,33 @@
 extern crate test_server;
 extern crate modbus;
 
+mod connection_tests {
+    use modbus::tcp::{Config, Transport};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn test_connect_timeout() {
+        let mut cfg = Config::default();
+        cfg.tcp_connect_timeout = Some(Duration::from_millis(1000));
+        let now = Instant::now();
+        if let Err(_) = Transport::new_with_cfg("30.30.30.30", cfg) {
+            let elapsed = now.elapsed().as_secs();
+            assert_eq!(elapsed, 1, "Elapsed: {}", elapsed);
+        }
+    }
+
+    #[test]
+    fn test_default_timeout() {
+        let cfg = Config::default();
+        let now = Instant::now();
+        if let Err(_) = Transport::new_with_cfg("30.30.30.30", cfg) {
+            let elapsed = now.elapsed().as_secs();
+            println!("Default OS TCP Timeout: {} secs", elapsed);
+            assert!(true);
+        }
+    }
+}
+
 #[cfg(feature="modbus-server-tests")]
 mod modbus_server_tests {
     use test_server::{ChildKiller, start_dummy_server};
