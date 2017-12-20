@@ -1,5 +1,5 @@
 use std::io::{self, Write, Read, Cursor};
-use std::net::{TcpStream, Shutdown};
+use std::net::{TcpStream, Shutdown, ToSocketAddrs};
 use std::time::Duration;
 use std::borrow::BorrowMut;
 use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
@@ -16,6 +16,8 @@ const MODBUS_MAX_PACKET_SIZE: usize = 260;
 pub struct Config {
     /// The TCP port to use for communication (Default: `502`)
     pub tcp_port: u16,
+    /// Connection timeout for TCP socket (Default: `OS Default`)
+    pub tcp_connect_timeout: Option<Duration>,
     /// Timeout when reading from the TCP socket (Default: `infinite`)
     pub tcp_read_timeout: Option<Duration>,
     /// Timeout when writing to the TCP socket (Default: `infinite`)
@@ -28,6 +30,7 @@ impl Default for Config {
     fn default() -> Config {
         Config {
             tcp_port: MODBUS_TCP_DEFAULT_PORT,
+            tcp_connect_timeout: None,
             tcp_read_timeout: None,
             tcp_write_timeout: None,
             modbus_uid: 1,
@@ -89,7 +92,16 @@ impl Transport {
 
     /// Create a new context object and connect it to `addr` on port `port`
     pub fn new_with_cfg(addr: &str, cfg: Config) -> io::Result<Transport> {
-        match TcpStream::connect((addr, cfg.tcp_port)) {
+        let stream = match cfg.tcp_connect_timeout {
+            Some(timeout) => {
+                // Call to connect_timeout needs to be done on a single address
+                let mut socket_addrs = (addr, cfg.tcp_port).to_socket_addrs()?;
+                TcpStream::connect_timeout(&socket_addrs.next().unwrap(), timeout)
+            },
+            None => TcpStream::connect((addr, cfg.tcp_port)),
+        };
+
+        match stream {
             Ok(s) => {
                 s.set_read_timeout(cfg.tcp_read_timeout)?;
                 s.set_write_timeout(cfg.tcp_write_timeout)?;
