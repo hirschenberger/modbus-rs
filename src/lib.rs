@@ -180,8 +180,8 @@ pub enum Coil {
 }
 
 impl Coil {
-    fn code(&self) -> u16 {
-        match *self {
+    fn code(self) -> u16 {
+        match self {
             Coil::On => 0xff00,
             Coil::Off => 0x0000,
         }

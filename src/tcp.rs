@@ -236,7 +236,7 @@ impl Transport {
     }
 
     fn write(self: &mut Self, buff: &mut [u8]) -> Result<()> {
-        if buff.len() < 1 {
+        if buff.is_empty() {
             return Err(Error::InvalidData(Reason::SendBufferEmpty));
         }
 

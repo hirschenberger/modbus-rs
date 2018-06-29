@@ -121,9 +121,9 @@ impl<'a> ScopedCoil<'a> {
                fun: CoilDropFunction)
                -> Result<ScopedCoil> {
         Ok(ScopedCoil {
-            address: address,
-            fun: fun,
-            transport: transport,
+            address,
+            fun,
+            transport,
         })
     }
 
@@ -169,9 +169,9 @@ impl<'a> ScopedRegister<'a> {
                    fun: RegisterDropFunction<'b>)
                    -> Result<ScopedRegister<'b>> {
         Ok(ScopedRegister {
-            address: address,
-            fun: fun,
-            transport: transport,
+            address,
+            fun,
+            transport,
         })
     }
 
