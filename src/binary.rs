@@ -1,6 +1,6 @@
-use std::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt};
-use {Coil, Reason, Result, Error};
+use std::io::Cursor;
+use {Coil, Error, Reason, Result};
 
 pub fn unpack_bits(bytes: &[u8], count: u16) -> Vec<Coil> {
     let mut res = Vec::with_capacity(count as usize);
@@ -16,12 +16,7 @@ pub fn unpack_bits(bytes: &[u8], count: u16) -> Vec<Coil> {
 
 pub fn pack_bits(bits: &[Coil]) -> Vec<u8> {
     let bitcount = bits.len();
-    let packed_size = bitcount / 8 +
-                      if bitcount % 8 > 0 {
-        1
-    } else {
-        0
-    };
+    let packed_size = bitcount / 8 + if bitcount % 8 > 0 { 1 } else { 0 };
     let mut res = vec![0; packed_size];
     for (i, b) in bits.iter().enumerate() {
         let v = match *b {
