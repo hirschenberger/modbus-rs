@@ -11,12 +11,12 @@ license = "MIT"
 name = "modbus"
 readme = "README.md"
 repository = "https://github.com/hirschenberger/modbus-rs.git"
-version = "1.0.0"
+version = "1.0.1"
 
 [dependencies]
 byteorder = "1"
 enum_primitive = "0.1"
-num = "0.1"
+num = "0.2"
 
 [dev-dependencies]
 clap = "2"
