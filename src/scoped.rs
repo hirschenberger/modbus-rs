@@ -55,7 +55,7 @@
 //! # }
 //! ```
 
-use {Coil, Transport, Client, Result};
+use {Client, Coil, Result, Transport};
 
 /// Action to perform when the `ScopedCoil` is dropped.
 pub enum CoilDropFunction {
@@ -78,7 +78,7 @@ pub enum RegisterDropFunction<'a> {
     /// Set the register value to the given value.
     Value(u16),
     /// Execute the given function on the current value, setting the register with the result value.
-    Fun(&'a Fn(u16) -> u16),
+    Fun(&'a dyn Fn(u16) -> u16),
 }
 
 /// Auto object which modifies it's coil value depending on a given modification function if it
@@ -91,19 +91,18 @@ pub struct ScopedCoil<'a> {
 
 impl<'a> Drop for ScopedCoil<'a> {
     fn drop(&mut self) {
-        let _ = self.transport
+        let _ = self
+            .transport
             .read_coils(self.address, 1)
             .and_then(|value| match value.len() {
                 1 => {
                     let drop_value = match self.fun {
                         CoilDropFunction::On => Coil::On,
                         CoilDropFunction::Off => Coil::Off,
-                        CoilDropFunction::Toggle => {
-                            match value[0] {
-                                Coil::On => Coil::Off,
-                                Coil::Off => Coil::On,
-                            }
-                        }
+                        CoilDropFunction::Toggle => match value[0] {
+                            Coil::On => Coil::Off,
+                            Coil::Off => Coil::On,
+                        },
                     };
                     let _ = self.transport.write_single_coil(self.address, drop_value);
                     Ok(())
@@ -116,10 +115,11 @@ impl<'a> Drop for ScopedCoil<'a> {
 impl<'a> ScopedCoil<'a> {
     /// Create a new `ScopedCoil` object with `address` and drop function when the object goes
     /// out of scope.
-    pub fn new(transport: &mut Transport,
-               address: u16,
-               fun: CoilDropFunction)
-               -> Result<ScopedCoil> {
+    pub fn new(
+        transport: &mut Transport,
+        address: u16,
+        fun: CoilDropFunction,
+    ) -> Result<ScopedCoil> {
         Ok(ScopedCoil {
             address,
             fun,
@@ -142,7 +142,8 @@ pub struct ScopedRegister<'a> {
 
 impl<'a> Drop for ScopedRegister<'a> {
     fn drop(&mut self) {
-        let _ = self.transport
+        let _ = self
+            .transport
             .read_holding_registers(self.address, 1)
             .and_then(|value| match value.len() {
                 1 => {
@@ -153,7 +154,9 @@ impl<'a> Drop for ScopedRegister<'a> {
                         RegisterDropFunction::Value(v) => v,
                         RegisterDropFunction::Fun(f) => f(value[0]),
                     };
-                    let _ = self.transport.write_single_register(self.address, drop_value);
+                    let _ = self
+                        .transport
+                        .write_single_register(self.address, drop_value);
                     Ok(())
                 }
                 _ => Ok(()),
@@ -164,10 +167,11 @@ impl<'a> Drop for ScopedRegister<'a> {
 impl<'a> ScopedRegister<'a> {
     /// Create a new `ScopedRegister` object with `address` and drop function when the object goes
     /// out of scope.
-    pub fn new<'b>(transport: &'b mut Transport,
-                   address: u16,
-                   fun: RegisterDropFunction<'b>)
-                   -> Result<ScopedRegister<'b>> {
+    pub fn new<'b>(
+        transport: &'b mut Transport,
+        address: u16,
+        fun: RegisterDropFunction<'b>,
+    ) -> Result<ScopedRegister<'b>> {
         Ok(ScopedRegister {
             address,
             fun,
