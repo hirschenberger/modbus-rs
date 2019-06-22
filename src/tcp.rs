@@ -1,10 +1,10 @@
-use std::io::{self, Write, Read, Cursor};
-use std::net::{TcpStream, Shutdown, ToSocketAddrs};
-use std::time::Duration;
-use std::borrow::BorrowMut;
-use byteorder::{BigEndian, WriteBytesExt, ReadBytesExt};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use enum_primitive::FromPrimitive;
-use {Function, Reason, Result, ExceptionCode, Error, Coil, binary, Client};
+use std::borrow::BorrowMut;
+use std::io::{self, Cursor, Read, Write};
+use std::net::{Shutdown, TcpStream, ToSocketAddrs};
+use std::time::Duration;
+use {binary, Client, Coil, Error, ExceptionCode, Function, Reason, Result};
 
 const MODBUS_PROTOCOL_TCP: u16 = 0x0000;
 const MODBUS_TCP_DEFAULT_PORT: u16 = 502;
@@ -71,7 +71,7 @@ impl Header {
             tid: rdr.read_u16::<BigEndian>()?,
             pid: rdr.read_u16::<BigEndian>()?,
             len: rdr.read_u16::<BigEndian>()?,
-            uid: rdr.read_u8()?
+            uid: rdr.read_u8()?,
         })
     }
 }
@@ -97,7 +97,7 @@ impl Transport {
                 // Call to connect_timeout needs to be done on a single address
                 let mut socket_addrs = (addr, cfg.tcp_port).to_socket_addrs()?;
                 TcpStream::connect_timeout(&socket_addrs.next().unwrap(), timeout)
-            },
+            }
             None => TcpStream::connect((addr, cfg.tcp_port)),
         };
 
@@ -124,19 +124,14 @@ impl Transport {
     }
 
     fn read(self: &mut Self, fun: &Function) -> Result<Vec<u8>> {
-        let packed_size = |v: u16| {
-            v / 8 +
-            if v % 8 > 0 {
-                1
-            } else {
-                0
-            }
-        };
+        let packed_size = |v: u16| v / 8 + if v % 8 > 0 { 1 } else { 0 };
         let (addr, count, expected_bytes) = match *fun {
-            Function::ReadCoils(a, c) |
-            Function::ReadDiscreteInputs(a, c) => (a, c, packed_size(c) as usize),
-            Function::ReadHoldingRegisters(a, c) |
-            Function::ReadInputRegisters(a, c) => (a, c, 2 * c as usize),
+            Function::ReadCoils(a, c) | Function::ReadDiscreteInputs(a, c) => {
+                (a, c, packed_size(c) as usize)
+            }
+            Function::ReadHoldingRegisters(a, c) | Function::ReadInputRegisters(a, c) => {
+                (a, c, 2 * c as usize)
+            }
             _ => return Err(Error::InvalidFunction),
         };
 
@@ -193,8 +188,9 @@ impl Transport {
     }
 
     fn get_reply_data(reply: &[u8], expected_bytes: usize) -> Result<Vec<u8>> {
-        if reply[8] as usize != expected_bytes ||
-           reply.len() != MODBUS_HEADER_SIZE + expected_bytes + 2 {
+        if reply[8] as usize != expected_bytes
+            || reply.len() != MODBUS_HEADER_SIZE + expected_bytes + 2
+        {
             Err(Error::InvalidData(Reason::UnexpectedReplySize))
         } else {
             let mut d = Vec::new();
@@ -205,12 +201,11 @@ impl Transport {
 
     fn write_single(self: &mut Self, fun: &Function) -> Result<()> {
         let (addr, value) = match *fun {
-            Function::WriteSingleCoil(a, v) |
-            Function::WriteSingleRegister(a, v) => (a, v),
+            Function::WriteSingleCoil(a, v) | Function::WriteSingleRegister(a, v) => (a, v),
             _ => return Err(Error::InvalidFunction),
         };
 
-        let mut buff = vec![0; MODBUS_HEADER_SIZE];  // Header gets filled in later
+        let mut buff = vec![0; MODBUS_HEADER_SIZE]; // Header gets filled in later
         buff.write_u8(fun.code())?;
         buff.write_u16::<BigEndian>(addr)?;
         buff.write_u16::<BigEndian>(value)?;
@@ -219,12 +214,13 @@ impl Transport {
 
     fn write_multiple(self: &mut Self, fun: &Function) -> Result<()> {
         let (addr, quantity, values) = match *fun {
-            Function::WriteMultipleCoils(a, q, v) |
-            Function::WriteMultipleRegisters(a, q, v) => (a, q, v),
+            Function::WriteMultipleCoils(a, q, v) | Function::WriteMultipleRegisters(a, q, v) => {
+                (a, q, v)
+            }
             _ => return Err(Error::InvalidFunction),
         };
 
-        let mut buff = vec![0; MODBUS_HEADER_SIZE];  // Header gets filled in later
+        let mut buff = vec![0; MODBUS_HEADER_SIZE]; // Header gets filled in later
         buff.write_u8(fun.code())?;
         buff.write_u16::<BigEndian>(addr)?;
         buff.write_u16::<BigEndian>(quantity)?;
@@ -309,13 +305,21 @@ impl Client for Transport {
     /// Write a multiple coils (bits) starting at address `addr`.
     fn write_multiple_coils(self: &mut Self, addr: u16, values: &[Coil]) -> Result<()> {
         let bytes = binary::pack_bits(values);
-        self.write_multiple(&Function::WriteMultipleCoils(addr, values.len() as u16, &bytes))
+        self.write_multiple(&Function::WriteMultipleCoils(
+            addr,
+            values.len() as u16,
+            &bytes,
+        ))
     }
 
     /// Write a multiple 16bit registers starting at address `addr`.
     fn write_multiple_registers(self: &mut Self, addr: u16, values: &[u16]) -> Result<()> {
         let bytes = binary::unpack_bytes(values);
-        self.write_multiple(&Function::WriteMultipleRegisters(addr, values.len() as u16, &bytes))
+        self.write_multiple(&Function::WriteMultipleRegisters(
+            addr,
+            values.len() as u16,
+            &bytes,
+        ))
     }
 
     /// Set the unit identifier.
@@ -330,8 +334,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn serialize_header(){
-        let header = Header{tid: 12816, pid: 3930, len: 99, uid: 68 };
+    fn serialize_header() {
+        let header = Header {
+            tid: 12816,
+            pid: 3930,
+            len: 99,
+            uid: 68,
+        };
         let serialized = header.pack().unwrap();
         let deserialized = Header::unpack(&vec![50, 16, 15, 90, 0, 99, 68]).unwrap();
         let re_deserialized = Header::unpack(&serialized).unwrap();

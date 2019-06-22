@@ -1,4 +1,4 @@
-use {Result, Coil};
+use {Coil, Result};
 
 pub trait Client {
     fn read_discrete_inputs(&mut self, address: u16, quantity: u16) -> Result<Vec<Coil>>;

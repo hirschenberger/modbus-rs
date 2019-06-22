@@ -24,8 +24,8 @@
 extern crate enum_primitive;
 extern crate byteorder;
 
-use std::io;
 use std::fmt;
+use std::io;
 use std::str::FromStr;
 
 pub mod binary;
@@ -35,9 +35,9 @@ pub mod scoped;
 
 /// The Modbus TCP backend implements a Modbus variant used for communication over TCP/IPv4 networks.
 pub mod tcp;
-pub use tcp::Transport;
-pub use tcp::Config;
 pub use client::Client;
+pub use tcp::Config;
+pub use tcp::Transport;
 
 type Address = u16;
 type Quantity = u16;
@@ -118,7 +118,6 @@ pub enum Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-
         use Error::*;
 
         match *self {
@@ -134,7 +133,6 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {
     fn description(&self) -> &str {
-
         use Error::*;
 
         match *self {
@@ -148,7 +146,6 @@ impl std::error::Error for Error {
     }
 
     fn cause(&self) -> Option<&dyn std::error::Error> {
-
         match *self {
             Error::Io(ref err) => Some(err),
             _ => None,
@@ -170,7 +167,6 @@ impl From<io::Error> for Error {
 
 /// Result type used to nofify success or failure in communication
 pub type Result<T> = std::result::Result<T, Error>;
-
 
 /// Single bit status values, used in read or write coil functions
 #[derive(Debug, Clone, Copy, PartialEq)]
