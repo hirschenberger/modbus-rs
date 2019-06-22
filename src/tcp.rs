@@ -317,6 +317,11 @@ impl Client for Transport {
         let bytes = binary::unpack_bytes(values);
         self.write_multiple(&Function::WriteMultipleRegisters(addr, values.len() as u16, &bytes))
     }
+
+    /// Set the unit identifier.
+    fn set_uid(&mut self, uid: u8) {
+        self.uid = uid;
+    }
 }
 
 #[cfg(test)]
