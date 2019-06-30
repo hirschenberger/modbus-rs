@@ -196,3 +196,38 @@ impl FromStr for Coil {
         }
     }
 }
+
+impl From<bool> for Coil {
+    fn from(b: bool) -> Coil {
+        if b {
+            Coil::On
+        } else {
+            Coil::Off
+        }
+    }
+}
+
+impl std::ops::Not for Coil {
+    type Output = Coil;
+
+    fn not(self) -> Coil {
+        match self {
+            Coil::On => Coil::Off,
+            Coil::Off => Coil::On,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_coil_booleanness() {
+        let a: Coil = true.into();
+        assert_ne!(a, !a);
+        assert_eq!(a, !!a);
+        let b: Coil = false.into();
+        assert_eq!(a, !b);
+    }
+}
