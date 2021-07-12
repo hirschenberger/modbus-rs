@@ -4,6 +4,8 @@ use std::borrow::BorrowMut;
 use std::io::{self, Cursor, Read, Write};
 use std::net::{Shutdown, TcpStream, ToSocketAddrs};
 use std::time::Duration;
+
+use crate::{DeviceInfoObject, DeviceInfoCategory};
 use {binary, Client, Coil, Error, ExceptionCode, Function, Reason, Result};
 
 const MODBUS_PROTOCOL_TCP: u16 = 0x0000;
@@ -264,6 +266,67 @@ impl Transport {
 
     pub fn close(self: &mut Self) -> Result<()> {
         self.stream.shutdown(Shutdown::Both).map_err(Error::Io)
+    }
+
+    pub fn read_device_info(self: &mut Self, obj_id: u8, obj_category: DeviceInfoCategory) -> Result<Vec<DeviceInfoObject>> {
+        let mut info: Vec<DeviceInfoObject> = vec!();
+        let mut buff = vec![0; MODBUS_HEADER_SIZE]; // Header gets filled in later
+        buff.write_u8(0x2B)?;   // Modbus Encapsulated Interface (MEI FC43)
+        buff.write_u8(0x0E)?;   // MEI Type 14 (Read Device Indentification)
+        buff.write_u8(match obj_category {
+            DeviceInfoCategory::Basic    => 0x01,
+            DeviceInfoCategory::Regular  => 0x02,
+            DeviceInfoCategory::Extended => 0x03,
+        })?;
+        buff.write_u8(obj_id)?;
+        
+        let header = Header::new(self, buff.len() as u16 + 1u16);
+        let head_buff = header.pack()?;
+        {
+            let mut start: Cursor<&mut Vec<u8>> = Cursor::new(buff.borrow_mut());
+            start.write_all(&head_buff)?;
+        }
+        match self.stream.write_all(&buff) {
+            Ok(_s) => {
+                let reply = &mut [0; MODBUS_MAX_PACKET_SIZE];
+                match self.stream.read(reply) {
+                    Ok(_s) => {
+                        let resp_hd = Header::unpack(reply)?;
+                        Transport::validate_response_header(&header, &resp_hd)?;
+                        Transport::validate_response_code(&buff, reply)?;
+                        
+                        let resp_body = reply[7..(6+resp_hd.len) as usize].to_vec();
+                        let obj_count = resp_body[6] as usize;
+                        let mut cursor: usize = 6;
+                        for i in 0..obj_count {
+                            cursor += 1;
+                            let id = resp_body[cursor];
+
+                            cursor += 1;
+                            let len = resp_body[cursor] as usize;
+
+                            let mut val_buf: Vec<u8> = vec!();
+                            for j in 0..len {
+                                cursor += 1;
+                                val_buf.push(resp_body[cursor])
+                            }
+
+                            let object = DeviceInfoObject {
+                                id: id,
+                                value: String::from_utf8(val_buf).unwrap()
+                            };
+                            info.push(object)
+                        }
+                        Ok(())
+                    
+                    }
+                    Err(e) => Err(Error::Io(e)),
+                }
+            }
+            Err(e) => Err(Error::Io(e)),
+        }?;
+
+        Ok(info)
     }
 }
 

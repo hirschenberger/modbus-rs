@@ -27,3 +27,4 @@ version = "0.0.*"
 [features]
 default = []
 modbus-server-tests = ["modbus-test-server/modbus-server-tests"]
+device-info = []

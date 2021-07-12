@@ -218,6 +218,23 @@ impl std::ops::Not for Coil {
     }
 }
 
+pub enum DeviceInfoCategory {
+    Basic,
+    Regular,
+    Extended,
+}
+
+#[derive(Clone, Debug)]
+pub struct DeviceInfoObject {
+    id: u8,
+    value: String,
+}
+impl DeviceInfoObject {
+    pub fn to_string(&self) -> String {
+        self.value.clone()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
