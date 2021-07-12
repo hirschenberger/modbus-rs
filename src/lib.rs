@@ -114,6 +114,7 @@ pub enum Error {
     InvalidData(Reason),
     InvalidFunction,
     ParseCoilError,
+    ParseInfoError,
 }
 
 impl fmt::Display for Error {
@@ -127,6 +128,7 @@ impl fmt::Display for Error {
             InvalidData(ref reason) => write!(f, "invalid data: {:?}", reason),
             InvalidFunction => write!(f, "invalid modbus function"),
             ParseCoilError => write!(f, "parse coil could not be parsed"),
+            ParseInfoError => write!(f, "failed parsing device info as utf8"),
         }
     }
 }
@@ -142,6 +144,7 @@ impl std::error::Error for Error {
             InvalidData(_) => "invalid data",
             InvalidFunction => "invalid modbus function",
             ParseCoilError => "parse coil could not be parsed",
+            ParseInfoError => "failed parsing device info as utf8",
         }
     }
 
@@ -218,20 +221,29 @@ impl std::ops::Not for Coil {
     }
 }
 
-pub enum DeviceInfoCategory {
-    Basic,
-    Regular,
-    Extended,
-}
+/// Types specific to the special ReadDeviceInfo function
+pub mod mei {
+    pub enum DeviceInfoCategory {
+        Basic,
+        Regular,
+        Extended,
+    }
 
-#[derive(Clone, Debug)]
-pub struct DeviceInfoObject {
-    id: u8,
-    value: String,
-}
-impl DeviceInfoObject {
-    pub fn to_string(&self) -> String {
-        self.value.clone()
+    #[derive(Clone, Debug)]
+    pub struct DeviceInfoObject {
+        id: u8,
+        value: String,
+    }
+    impl DeviceInfoObject {
+        pub fn new(obj_id: u8, value: String) -> Self {
+            Self {
+                id: obj_id,
+                value,
+            }
+        }
+        pub fn to_string(&self) -> String {
+            self.value.clone()
+        }
     }
 }
 

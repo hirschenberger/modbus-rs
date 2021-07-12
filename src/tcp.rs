@@ -5,8 +5,7 @@ use std::io::{self, Cursor, Read, Write};
 use std::net::{Shutdown, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
-use crate::{DeviceInfoObject, DeviceInfoCategory};
-use {binary, Client, Coil, Error, ExceptionCode, Function, Reason, Result};
+use {binary, Client, Coil, Error, ExceptionCode, Function, Reason, Result, mei};
 
 const MODBUS_PROTOCOL_TCP: u16 = 0x0000;
 const MODBUS_TCP_DEFAULT_PORT: u16 = 502;
@@ -267,18 +266,21 @@ impl Transport {
     pub fn close(self: &mut Self) -> Result<()> {
         self.stream.shutdown(Shutdown::Both).map_err(Error::Io)
     }
-
-    pub fn read_device_info(self: &mut Self, obj_id: u8, obj_category: DeviceInfoCategory) -> Result<Vec<DeviceInfoObject>> {
-        let mut info: Vec<DeviceInfoObject> = vec!();
+    /**
+    Some devices support modbus function 43 (Modbus Encasulated Interface) to read device information as strings.
+    This will return an IllegalFunction (0x01) exception code if this request is not supported by the device.
+    */
+    pub fn read_device_info(self: &mut Self, obj_category: mei::DeviceInfoCategory) -> Result<Vec<mei::DeviceInfoObject>> {
+        let mut info: Vec<mei::DeviceInfoObject> = vec!();
         let mut buff = vec![0; MODBUS_HEADER_SIZE]; // Header gets filled in later
-        buff.write_u8(0x2B)?;   // Modbus Encapsulated Interface (MEI FC43)
+        buff.write_u8(0x2B)?;   // Modbus Encapsulated Interface (Function code 43)
         buff.write_u8(0x0E)?;   // MEI Type 14 (Read Device Indentification)
         buff.write_u8(match obj_category {
-            DeviceInfoCategory::Basic    => 0x01,
-            DeviceInfoCategory::Regular  => 0x02,
-            DeviceInfoCategory::Extended => 0x03,
+            mei::DeviceInfoCategory::Basic    => 0x01,
+            mei::DeviceInfoCategory::Regular  => 0x02,
+            mei::DeviceInfoCategory::Extended => 0x03,
         })?;
-        buff.write_u8(obj_id)?;
+        buff.write_u8(0x00)?;   // Object ID 
         
         let header = Header::new(self, buff.len() as u16 + 1u16);
         let head_buff = header.pack()?;
@@ -311,10 +313,12 @@ impl Transport {
                                 val_buf.push(resp_body[cursor])
                             }
 
-                            let object = DeviceInfoObject {
-                                id: id,
-                                value: String::from_utf8(val_buf).unwrap()
-                            };
+                            let object = mei::DeviceInfoObject::new(
+                                id,
+                                match String::from_utf8(val_buf) {
+                                    Ok(val) => val,
+                                    Err(e) => return Err(Error::ParseInfoError)
+                                });
                             info.push(object)
                         }
                         Ok(())
@@ -325,7 +329,6 @@ impl Transport {
             }
             Err(e) => Err(Error::Io(e)),
         }?;
-
         Ok(info)
     }
 }
@@ -393,7 +396,6 @@ impl Client for Transport {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
