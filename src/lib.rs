@@ -222,6 +222,7 @@ impl std::ops::Not for Coil {
 }
 
 /// Types specific to the special ReadDeviceInfo function
+#[cfg(feature = "read-device-info")]
 pub mod mei {
     pub enum DeviceInfoCategory {
         Basic,

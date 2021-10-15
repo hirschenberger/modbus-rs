@@ -5,7 +5,10 @@ use std::io::{self, Cursor, Read, Write};
 use std::net::{Shutdown, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
-use {binary, Client, Coil, Error, ExceptionCode, Function, Reason, Result, mei};
+use {binary, Client, Coil, Error, ExceptionCode, Function, Reason, Result};
+
+#[cfg(feature = "read-device-info")]
+use mei;
 
 const MODBUS_PROTOCOL_TCP: u16 = 0x0000;
 const MODBUS_TCP_DEFAULT_PORT: u16 = 502;
@@ -266,10 +269,12 @@ impl Transport {
     pub fn close(self: &mut Self) -> Result<()> {
         self.stream.shutdown(Shutdown::Both).map_err(Error::Io)
     }
+
     /**
     Some devices support modbus function 43 (Modbus Encasulated Interface) to read device information as strings.
     This will return an IllegalFunction (0x01) exception code if this request is not supported by the device.
     */
+    #[cfg(feature = "read-device-info")]
     pub fn read_device_info(self: &mut Self, obj_category: mei::DeviceInfoCategory) -> Result<Vec<mei::DeviceInfoObject>> {
         let mut info: Vec<mei::DeviceInfoObject> = vec!();
         let mut buff = vec![0; MODBUS_HEADER_SIZE]; // Header gets filled in later
@@ -300,7 +305,7 @@ impl Transport {
                         let resp_body = reply[7..(6+resp_hd.len) as usize].to_vec();
                         let obj_count = resp_body[6] as usize;
                         let mut cursor: usize = 6;
-                        for i in 0..obj_count {
+                        for _ in 0..obj_count {
                             cursor += 1;
                             let id = resp_body[cursor];
 
@@ -308,7 +313,7 @@ impl Transport {
                             let len = resp_body[cursor] as usize;
 
                             let mut val_buf: Vec<u8> = vec!();
-                            for j in 0..len {
+                            for _ in 0..len {
                                 cursor += 1;
                                 val_buf.push(resp_body[cursor])
                             }
@@ -317,7 +322,7 @@ impl Transport {
                                 id,
                                 match String::from_utf8(val_buf) {
                                     Ok(val) => val,
-                                    Err(e) => return Err(Error::ParseInfoError)
+                                    Err(_) => return Err(Error::ParseInfoError)
                                 });
                             info.push(object)
                         }
