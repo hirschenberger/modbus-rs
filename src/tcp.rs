@@ -127,7 +127,7 @@ impl Transport {
         self.tid
     }
 
-    fn read(self: &mut Self, fun: &Function) -> Result<Vec<u8>> {
+    fn read(&mut self, fun: &Function) -> Result<Vec<u8>> {
         let packed_size = |v: u16| v / 8 + if v % 8 > 0 { 1 } else { 0 };
         let (addr, count, expected_bytes) = match *fun {
             Function::ReadCoils(a, c) | Function::ReadDiscreteInputs(a, c) => {
@@ -203,7 +203,7 @@ impl Transport {
         }
     }
 
-    fn write_single(self: &mut Self, fun: &Function) -> Result<()> {
+    fn write_single(&mut self, fun: &Function) -> Result<()> {
         let (addr, value) = match *fun {
             Function::WriteSingleCoil(a, v) | Function::WriteSingleRegister(a, v) => (a, v),
             _ => return Err(Error::InvalidFunction),
@@ -216,7 +216,7 @@ impl Transport {
         self.write(&mut buff)
     }
 
-    fn write_multiple(self: &mut Self, fun: &Function) -> Result<()> {
+    fn write_multiple(&mut self, fun: &Function) -> Result<()> {
         let (addr, quantity, values) = match *fun {
             Function::WriteMultipleCoils(a, q, v) | Function::WriteMultipleRegisters(a, q, v) => {
                 (a, q, v)
@@ -235,7 +235,7 @@ impl Transport {
         self.write(&mut buff)
     }
 
-    fn write(self: &mut Self, buff: &mut [u8]) -> Result<()> {
+    fn write(&mut self, buff: &mut [u8]) -> Result<()> {
         if buff.is_empty() {
             return Err(Error::InvalidData(Reason::SendBufferEmpty));
         }
@@ -266,7 +266,7 @@ impl Transport {
         }
     }
 
-    pub fn close(self: &mut Self) -> Result<()> {
+    pub fn close(&mut self) -> Result<()> {
         self.stream.shutdown(Shutdown::Both).map_err(Error::Io)
     }
 
@@ -275,18 +275,21 @@ impl Transport {
     Some devices support modbus function 43 (Modbus Encasulated Interface) to read device information as strings.
     This will return an `IllegalFunction (0x01)` exception code if this request is not supported by the device.
     */
-    pub fn read_device_info(self: &mut Self, obj_category: mei::DeviceInfoCategory) -> Result<Vec<mei::DeviceInfoObject>> {
-        let mut info: Vec<mei::DeviceInfoObject> = vec!();
+    pub fn read_device_info(
+        &mut self,
+        obj_category: mei::DeviceInfoCategory,
+    ) -> Result<Vec<mei::DeviceInfoObject>> {
+        let mut info: Vec<mei::DeviceInfoObject> = vec![];
         let mut buff = vec![0; MODBUS_HEADER_SIZE]; // Header gets filled in later
-        buff.write_u8(0x2B)?;   // Modbus Encapsulated Interface (Function code 43)
-        buff.write_u8(0x0E)?;   // MEI Type 14 (Read Device Indentification)
+        buff.write_u8(0x2B)?; // Modbus Encapsulated Interface (Function code 43)
+        buff.write_u8(0x0E)?; // MEI Type 14 (Read Device Indentification)
         buff.write_u8(match obj_category {
-            mei::DeviceInfoCategory::Basic    => 0x01,
-            mei::DeviceInfoCategory::Regular  => 0x02,
+            mei::DeviceInfoCategory::Basic => 0x01,
+            mei::DeviceInfoCategory::Regular => 0x02,
             mei::DeviceInfoCategory::Extended => 0x03,
         })?;
-        buff.write_u8(0x00)?;   // Object ID 
-        
+        buff.write_u8(0x00)?; // Object ID
+
         let header = Header::new(self, buff.len() as u16 + 1u16);
         let head_buff = header.pack()?;
         {
@@ -301,8 +304,8 @@ impl Transport {
                         let resp_hd = Header::unpack(reply)?;
                         Transport::validate_response_header(&header, &resp_hd)?;
                         Transport::validate_response_code(&buff, reply)?;
-                        
-                        let resp_body = reply[7..(6+resp_hd.len) as usize].to_vec();
+
+                        let resp_body = reply[7..(6 + resp_hd.len) as usize].to_vec();
                         let obj_count = resp_body[6] as usize;
                         let mut cursor: usize = 6;
                         for _ in 0..obj_count {
@@ -312,7 +315,7 @@ impl Transport {
                             cursor += 1;
                             let len = resp_body[cursor] as usize;
 
-                            let mut val_buf: Vec<u8> = vec!();
+                            let mut val_buf: Vec<u8> = vec![];
                             for _ in 0..len {
                                 cursor += 1;
                                 val_buf.push(resp_body[cursor])
@@ -322,12 +325,12 @@ impl Transport {
                                 id,
                                 match String::from_utf8(val_buf) {
                                     Ok(val) => val,
-                                    Err(_) => return Err(Error::ParseInfoError)
-                                });
+                                    Err(_) => return Err(Error::ParseInfoError),
+                                },
+                            );
                             info.push(object)
                         }
                         Ok(())
-                    
                     }
                     Err(e) => Err(Error::Io(e)),
                 }
@@ -340,41 +343,41 @@ impl Transport {
 
 impl Client for Transport {
     /// Read `count` bits starting at address `addr`.
-    fn read_coils(self: &mut Self, addr: u16, count: u16) -> Result<Vec<Coil>> {
+    fn read_coils(&mut self, addr: u16, count: u16) -> Result<Vec<Coil>> {
         let bytes = self.read(&Function::ReadCoils(addr, count))?;
         Ok(binary::unpack_bits(&bytes, count))
     }
 
     /// Read `count` input bits starting at address `addr`.
-    fn read_discrete_inputs(self: &mut Self, addr: u16, count: u16) -> Result<Vec<Coil>> {
+    fn read_discrete_inputs(&mut self, addr: u16, count: u16) -> Result<Vec<Coil>> {
         let bytes = self.read(&Function::ReadDiscreteInputs(addr, count))?;
         Ok(binary::unpack_bits(&bytes, count))
     }
 
     /// Read `count` 16bit registers starting at address `addr`.
-    fn read_holding_registers(self: &mut Self, addr: u16, count: u16) -> Result<Vec<u16>> {
+    fn read_holding_registers(&mut self, addr: u16, count: u16) -> Result<Vec<u16>> {
         let bytes = self.read(&Function::ReadHoldingRegisters(addr, count))?;
         binary::pack_bytes(&bytes[..])
     }
 
     /// Read `count` 16bit input registers starting at address `addr`.
-    fn read_input_registers(self: &mut Self, addr: u16, count: u16) -> Result<Vec<u16>> {
+    fn read_input_registers(&mut self, addr: u16, count: u16) -> Result<Vec<u16>> {
         let bytes = self.read(&Function::ReadInputRegisters(addr, count))?;
         binary::pack_bytes(&bytes[..])
     }
 
     /// Write a single coil (bit) to address `addr`.
-    fn write_single_coil(self: &mut Self, addr: u16, value: Coil) -> Result<()> {
+    fn write_single_coil(&mut self, addr: u16, value: Coil) -> Result<()> {
         self.write_single(&Function::WriteSingleCoil(addr, value.code()))
     }
 
     /// Write a single 16bit register to address `addr`.
-    fn write_single_register(self: &mut Self, addr: u16, value: u16) -> Result<()> {
+    fn write_single_register(&mut self, addr: u16, value: u16) -> Result<()> {
         self.write_single(&Function::WriteSingleRegister(addr, value))
     }
 
     /// Write a multiple coils (bits) starting at address `addr`.
-    fn write_multiple_coils(self: &mut Self, addr: u16, values: &[Coil]) -> Result<()> {
+    fn write_multiple_coils(&mut self, addr: u16, values: &[Coil]) -> Result<()> {
         let bytes = binary::pack_bits(values);
         self.write_multiple(&Function::WriteMultipleCoils(
             addr,
@@ -384,7 +387,7 @@ impl Client for Transport {
     }
 
     /// Write a multiple 16bit registers starting at address `addr`.
-    fn write_multiple_registers(self: &mut Self, addr: u16, values: &[u16]) -> Result<()> {
+    fn write_multiple_registers(&mut self, addr: u16, values: &[u16]) -> Result<()> {
         let bytes = binary::unpack_bytes(values);
         self.write_multiple(&Function::WriteMultipleRegisters(
             addr,

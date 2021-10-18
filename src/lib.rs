@@ -226,7 +226,7 @@ impl std::ops::Not for Coil {
 pub mod mei {
     /**
      * Describes object standard conformity
-     * 
+     *
      * - **Basic** - Mandatory for Modbus standard conformity
      * - **Regular** - Defined in the standard, but implementation is optional
      * - **Extended** - Optional fields that are reserved for device specific information
@@ -240,7 +240,7 @@ pub mod mei {
 
     /**
      * Struct representing a device information object.
-     * 
+     *
      * The following object IDs are defined in the Modbus standard:
      * - **0x00** *BASIC* `VendorName`
      * - **0x01** *BASIC* `ProductCode`
@@ -259,10 +259,7 @@ pub mod mei {
     }
     impl DeviceInfoObject {
         pub fn new(obj_id: u8, value: String) -> Self {
-            Self {
-                id: obj_id,
-                value,
-            }
+            Self { id: obj_id, value }
         }
         pub fn to_string(&self) -> String {
             self.value.clone()

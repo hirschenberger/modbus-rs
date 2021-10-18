@@ -91,24 +91,19 @@ pub struct ScopedCoil<'a> {
 
 impl<'a> Drop for ScopedCoil<'a> {
     fn drop(&mut self) {
-        let _ = self
-            .transport
-            .read_coils(self.address, 1)
-            .and_then(|value| match value.len() {
-                1 => {
-                    let drop_value = match self.fun {
-                        CoilDropFunction::On => Coil::On,
-                        CoilDropFunction::Off => Coil::Off,
-                        CoilDropFunction::Toggle => match value[0] {
-                            Coil::On => Coil::Off,
-                            Coil::Off => Coil::On,
-                        },
-                    };
-                    let _ = self.transport.write_single_coil(self.address, drop_value);
-                    Ok(())
-                }
-                _ => Ok(()),
-            });
+        let _ = self.transport.read_coils(self.address, 1).map(|value| {
+            if value.len() == 1 {
+                let drop_value = match self.fun {
+                    CoilDropFunction::On => Coil::On,
+                    CoilDropFunction::Off => Coil::Off,
+                    CoilDropFunction::Toggle => match value[0] {
+                        Coil::On => Coil::Off,
+                        Coil::Off => Coil::On,
+                    },
+                };
+                let _ = self.transport.write_single_coil(self.address, drop_value);
+            }
+        });
     }
 }
 
@@ -145,8 +140,8 @@ impl<'a> Drop for ScopedRegister<'a> {
         let _ = self
             .transport
             .read_holding_registers(self.address, 1)
-            .and_then(|value| match value.len() {
-                1 => {
+            .map(|value| {
+                if value.len() == 1 {
                     let drop_value = match self.fun {
                         RegisterDropFunction::Zero => 0u16,
                         RegisterDropFunction::Increment => value[0] + 1,
@@ -157,9 +152,7 @@ impl<'a> Drop for ScopedRegister<'a> {
                     let _ = self
                         .transport
                         .write_single_register(self.address, drop_value);
-                    Ok(())
                 }
-                _ => Ok(()),
             });
     }
 }
