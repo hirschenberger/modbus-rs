@@ -221,15 +221,37 @@ impl std::ops::Not for Coil {
     }
 }
 
-/// Types specific to the special ReadDeviceInfo function
 #[cfg(feature = "read-device-info")]
+/// Types specific to the special ReadDeviceInfo function
 pub mod mei {
+    /**
+     * Describes object standard conformity
+     * 
+     * - **Basic** - Mandatory for Modbus standard conformity
+     * - **Regular** - Defined in the standard, but implementation is optional
+     * - **Extended** - Optional fields that are reserved for device specific information
+     */
+    #[derive(Copy, Clone, Debug)]
     pub enum DeviceInfoCategory {
         Basic,
         Regular,
         Extended,
     }
 
+    /**
+     * Struct representing a device information object.
+     * 
+     * The following object IDs are defined in the Modbus standard:
+     * - **0x00** *BASIC* `VendorName`
+     * - **0x01** *BASIC* `ProductCode`
+     * - **0x02** *BASIC* `MajorMinorRevision`
+     * - **0x03** *REGULAR* `VendorUrl`
+     * - **0x04** *REGULAR* `ProductName`
+     * - **0x05** *REGULAR* `ModelName`
+     * - **0x06** *REGULAR* `UserApplicationName`
+     * - **0x07 - 0x7F** *REGULAR* `Reserved`
+     * - **0x80 - 0xFF** *EXTENDED* `Device Specific`
+     */
     #[derive(Clone, Debug)]
     pub struct DeviceInfoObject {
         id: u8,

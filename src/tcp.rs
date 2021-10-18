@@ -270,11 +270,11 @@ impl Transport {
         self.stream.shutdown(Shutdown::Both).map_err(Error::Io)
     }
 
+    #[cfg(feature = "read-device-info")]
     /**
     Some devices support modbus function 43 (Modbus Encasulated Interface) to read device information as strings.
-    This will return an IllegalFunction (0x01) exception code if this request is not supported by the device.
+    This will return an `IllegalFunction (0x01)` exception code if this request is not supported by the device.
     */
-    #[cfg(feature = "read-device-info")]
     pub fn read_device_info(self: &mut Self, obj_category: mei::DeviceInfoCategory) -> Result<Vec<mei::DeviceInfoObject>> {
         let mut info: Vec<mei::DeviceInfoObject> = vec!();
         let mut buff = vec![0; MODBUS_HEADER_SIZE]; // Header gets filled in later
