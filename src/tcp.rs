@@ -409,7 +409,9 @@ impl Client for Transport {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use std::net::{TcpStream, TcpListener};
+    use std::thread;
+    use std::sync::{Arc,Mutex};
     #[test]
     fn serialize_header() {
         let header = Header {
@@ -424,5 +426,37 @@ mod tests {
         assert_eq!(serialized, vec![50, 16, 15, 90, 0, 99, 68]);
         assert_eq!(deserialized, header);
         assert_eq!(re_deserialized, header);
+    }
+    #[test]
+    fn try_clone(){
+        let mut close = Arc::new(Mutex::new(()));
+        thread::scope(|s| {
+            let mut close_clone = close.clone();
+            let jh = s.spawn(move ||{
+                let listener = TcpListener::bind("127.0.0.1:34254").unwrap();
+                listener.accept().and_then(|(tcp,addr)| {
+                    while close_clone.try_lock().is_ok(){}
+                    Ok(())
+                }).unwrap();
+            });
+            let new_stream = TcpStream::connect("127.0.0.1:34254").unwrap();
+            let mut transport = Transport{ tid: 1, uid: 2, stream: new_stream };
+            match transport.try_clone() {
+                Ok(mut cl) => {
+                    assert_eq!(cl.tid, transport.tid);
+                    assert_eq!(cl.uid, transport.uid);
+                    assert_eq!(cl.stream.local_addr().unwrap(), transport.stream.local_addr().unwrap());
+                    assert_eq!(cl.stream.peer_addr().unwrap(), transport.stream.peer_addr().unwrap());
+                    cl.close().expect("unable to close TcpStream clone");
+                    assert!(transport.stream.write(b"data").is_err());
+                },
+                Err(_) => panic!("failed to clone"),
+            };
+            match close.lock(){
+                Ok(_l) => jh.join().unwrap(),
+                Err(_) => panic!("Unable to close listener"),
+            }
+        });
+        
     }
 }
