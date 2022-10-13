@@ -270,6 +270,10 @@ impl Transport {
         self.stream.shutdown(Shutdown::Both).map_err(Error::Io)
     }
 
+    fn try_clone(&self) -> Result<Self> {
+        Ok(Self { tid: self.tid, uid: self.uid, stream: self.stream.try_clone()? })
+    }
+
     #[cfg(feature = "read-device-info")]
     /**
     Some devices support modbus function 43 (Modbus Encasulated Interface) to read device information as strings.
