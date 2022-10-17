@@ -270,7 +270,7 @@ impl Transport {
         self.stream.shutdown(Shutdown::Both).map_err(Error::Io)
     }
 
-    fn try_clone(&self) -> Result<Self> {
+    pub fn try_clone(&self) -> Result<Self> {
         Ok(Self { tid: self.tid, uid: self.uid, stream: self.stream.try_clone()? })
     }
 
@@ -429,17 +429,17 @@ mod tests {
     }
     #[test]
     fn try_clone(){
-        let mut close = Arc::new(Mutex::new(()));
+        let close = Arc::new(Mutex::new(()));
         thread::scope(|s| {
-            let mut close_clone = close.clone();
+            let close_clone = close.clone();
             let jh = s.spawn(move ||{
-                let listener = TcpListener::bind("127.0.0.1:34254").unwrap();
-                listener.accept().and_then(|(tcp,addr)| {
+                let listener = TcpListener::bind("localhost:34254").unwrap();
+                listener.accept().and_then(|_| {
                     while close_clone.try_lock().is_ok(){}
                     Ok(())
                 }).unwrap();
             });
-            let new_stream = TcpStream::connect("127.0.0.1:34254").unwrap();
+            let new_stream = TcpStream::connect("localhost:34254").unwrap();
             let mut transport = Transport{ tid: 1, uid: 2, stream: new_stream };
             match transport.try_clone() {
                 Ok(mut cl) => {
