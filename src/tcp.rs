@@ -271,7 +271,11 @@ impl Transport {
     }
 
     pub fn try_clone(&self) -> Result<Self> {
-        Ok(Self { tid: self.tid, uid: self.uid, stream: self.stream.try_clone()? })
+        Ok(Self {
+            tid: self.tid,
+            uid: self.uid,
+            stream: self.stream.try_clone()?,
+        })
     }
 
     #[cfg(feature = "read-device-info")]
@@ -409,9 +413,9 @@ impl Client for Transport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::{TcpStream, TcpListener};
+    use std::net::{TcpListener, TcpStream};
+    use std::sync::{Arc, Mutex};
     use std::thread;
-    use std::sync::{Arc,Mutex};
     #[test]
     fn serialize_header() {
         let header = Header {
@@ -428,35 +432,52 @@ mod tests {
         assert_eq!(re_deserialized, header);
     }
     #[test]
-    fn try_clone(){
-        let close = Arc::new(Mutex::new(()));
-        thread::scope(|s| {
-            let close_clone = close.clone();
-            let jh = s.spawn(move ||{
-                let listener = TcpListener::bind("localhost:34254").unwrap();
-                listener.accept().and_then(|_| {
-                    while close_clone.try_lock().is_ok(){}
+    fn try_clone() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        static STARTED: AtomicBool = AtomicBool::new(false);
+        static CLOSED: AtomicBool = AtomicBool::new(false);
+
+        let jh = thread::spawn(|| {
+            let listener = TcpListener::bind("localhost:34254").unwrap();
+            STARTED.store(true, Ordering::Relaxed);
+            listener
+                .accept()
+                .and_then(|_| {
+                    while !CLOSED.load(Ordering::Relaxed) {}
                     Ok(())
-                }).unwrap();
-            });
-            let new_stream = TcpStream::connect("localhost:34254").unwrap();
-            let mut transport = Transport{ tid: 1, uid: 2, stream: new_stream };
-            match transport.try_clone() {
-                Ok(mut cl) => {
-                    assert_eq!(cl.tid, transport.tid);
-                    assert_eq!(cl.uid, transport.uid);
-                    assert_eq!(cl.stream.local_addr().unwrap(), transport.stream.local_addr().unwrap());
-                    assert_eq!(cl.stream.peer_addr().unwrap(), transport.stream.peer_addr().unwrap());
-                    cl.close().expect("unable to close TcpStream clone");
-                    assert!(transport.stream.write(b"data").is_err());
-                },
-                Err(_) => panic!("failed to clone"),
-            };
-            match close.lock(){
-                Ok(_l) => jh.join().unwrap(),
-                Err(_) => panic!("Unable to close listener"),
-            }
+                })
+                .unwrap();
         });
-        
+
+        while !STARTED.load(Ordering::Relaxed) {}
+
+        let new_stream = TcpStream::connect("localhost:34254").unwrap();
+        let mut transport = Transport {
+            tid: 1,
+            uid: 2,
+            stream: new_stream,
+        };
+
+        match transport.try_clone() {
+            Ok(mut cl) => {
+                assert_eq!(cl.tid, transport.tid);
+                assert_eq!(cl.uid, transport.uid);
+                assert_eq!(
+                    cl.stream.local_addr().unwrap(),
+                    transport.stream.local_addr().unwrap()
+                );
+                assert_eq!(
+                    cl.stream.peer_addr().unwrap(),
+                    transport.stream.peer_addr().unwrap()
+                );
+                cl.close().expect("unable to close TcpStream clone");
+                assert!(transport.stream.write(b"data").is_err());
+            }
+            Err(_) => panic!("failed to clone"),
+        };
+
+        CLOSED.store(true, Ordering::Relaxed);
+        jh.join().unwrap();
     }
 }
