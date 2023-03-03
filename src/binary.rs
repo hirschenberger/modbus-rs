@@ -23,7 +23,7 @@ pub fn pack_bits(bits: &[Coil]) -> Vec<u8> {
             Coil::On => 1u8,
             Coil::Off => 0u8,
         };
-        res[(i / 8) as usize] |= v << (i % 8);
+        res[i / 8] |= v << (i % 8);
     }
     res
 }
