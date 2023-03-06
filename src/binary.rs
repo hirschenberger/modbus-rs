@@ -5,7 +5,7 @@ use {Coil, Error, Reason, Result};
 pub fn unpack_bits(bytes: &[u8], count: u16) -> Vec<Coil> {
     let mut res = Vec::with_capacity(count as usize);
     for i in 0..count {
-        if (bytes[(i / 8u16) as usize] >> (i % 8)) & 0b1 > 0 {
+        if (bytes[(i / 8) as usize] >> (i % 8)) & 0b1 > 0 {
             res.push(Coil::On);
         } else {
             res.push(Coil::Off);
