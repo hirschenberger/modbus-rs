@@ -290,7 +290,7 @@ impl Transport {
         let mut info: Vec<mei::DeviceInfoObject> = vec![];
         let mut buff = vec![0; MODBUS_HEADER_SIZE]; // Header gets filled in later
         buff.write_u8(0x2B)?; // Modbus Encapsulated Interface (Function code 43)
-        buff.write_u8(0x0E)?; // MEI Type 14 (Read Device Indentification)
+        buff.write_u8(0x0E)?; // MEI Type 14 (Read Device Identification)
         buff.write_u8(match obj_category {
             mei::DeviceInfoCategory::Basic => 0x01,
             mei::DeviceInfoCategory::Regular => 0x02,
