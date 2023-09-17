@@ -414,7 +414,6 @@ impl Client for Transport {
 mod tests {
     use super::*;
     use std::net::{TcpListener, TcpStream};
-    use std::sync::{Arc, Mutex};
     use std::thread;
     #[test]
     fn serialize_header() {
