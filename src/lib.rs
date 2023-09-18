@@ -264,6 +264,9 @@ pub mod mei {
         pub fn to_string(&self) -> String {
             self.value.clone()
         }
+        pub fn id(&self) -> u8 {
+            self.id
+        }
     }
 }
 

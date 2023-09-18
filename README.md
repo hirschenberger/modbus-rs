@@ -1,7 +1,8 @@
 # Rust Modbus
-[![Build Status](https://travis-ci.org/hirschenberger/modbus-rs.svg)](https://travis-ci.org/hirschenberger/modbus-rs)
-[![Coverage Status](https://coveralls.io/repos/hirschenberger/modbus-rs/badge.svg?branch=master&service=github)](https://coveralls.io/github/hirschenberger/modbus-rs?branch=master)
-[![](http://meritbadge.herokuapp.com/modbus)](https://crates.io/crates/modbus)
+![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/hirschenberger/modbus/rust.yml)
+![Crates.io](https://img.shields.io/crates/v/modbus)
+![docs.rs](https://img.shields.io/docsrs/modbus) 
+![Crates.io](https://img.shields.io/crates/d/modbus)
 [![License](http://img.shields.io/:license-MIT-blue.svg)](http://doge.mit-license.org)
 
 
@@ -35,6 +36,6 @@ the [examples](https://github.com/hirschenberger/modbus-rs/tree/master/examples)
 
 
 ## License
-Copyright © 2015-2022 Falco Hirschenberger
+Copyright © 2015-2023 Falco Hirschenberger
 
 Distributed under the [MIT License](LICENSE).

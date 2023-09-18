@@ -290,7 +290,7 @@ impl Transport {
         let mut info: Vec<mei::DeviceInfoObject> = vec![];
         let mut buff = vec![0; MODBUS_HEADER_SIZE]; // Header gets filled in later
         buff.write_u8(0x2B)?; // Modbus Encapsulated Interface (Function code 43)
-        buff.write_u8(0x0E)?; // MEI Type 14 (Read Device Indentification)
+        buff.write_u8(0x0E)?; // MEI Type 14 (Read Device Identification)
         buff.write_u8(match obj_category {
             mei::DeviceInfoCategory::Basic => 0x01,
             mei::DeviceInfoCategory::Regular => 0x02,
@@ -304,47 +304,40 @@ impl Transport {
             let mut start: Cursor<&mut Vec<u8>> = Cursor::new(buff.borrow_mut());
             start.write_all(&head_buff)?;
         }
-        match self.stream.write_all(&buff) {
-            Ok(_s) => {
-                let reply = &mut [0; MODBUS_MAX_PACKET_SIZE];
-                match self.stream.read(reply) {
-                    Ok(_s) => {
-                        let resp_hd = Header::unpack(reply)?;
-                        Transport::validate_response_header(&header, &resp_hd)?;
-                        Transport::validate_response_code(&buff, reply)?;
 
-                        let resp_body = reply[7..(6 + resp_hd.len) as usize].to_vec();
-                        let obj_count = resp_body[6] as usize;
-                        let mut cursor: usize = 6;
-                        for _ in 0..obj_count {
-                            cursor += 1;
-                            let id = resp_body[cursor];
+        self.stream.write_all(&buff)?;
+        let reply = &mut [0; MODBUS_MAX_PACKET_SIZE];
 
-                            cursor += 1;
-                            let len = resp_body[cursor] as usize;
+        self.stream.read(reply)?;
+        let resp_hd = Header::unpack(reply)?;
+        Transport::validate_response_header(&header, &resp_hd)?;
+        Transport::validate_response_code(&buff, reply)?;
 
-                            let mut val_buf: Vec<u8> = vec![];
-                            for _ in 0..len {
-                                cursor += 1;
-                                val_buf.push(resp_body[cursor])
-                            }
+        let resp_body = reply[7..(6 + resp_hd.len) as usize].to_vec();
+        let obj_count = resp_body[6] as usize;
+        let mut cursor: usize = 6;
+        for _ in 0..obj_count {
+            cursor += 1;
+            let id = resp_body[cursor];
 
-                            let object = mei::DeviceInfoObject::new(
-                                id,
-                                match String::from_utf8(val_buf) {
-                                    Ok(val) => val,
-                                    Err(_) => return Err(Error::ParseInfoError),
-                                },
-                            );
-                            info.push(object)
-                        }
-                        Ok(())
-                    }
-                    Err(e) => Err(Error::Io(e)),
-                }
+            cursor += 1;
+            let len = resp_body[cursor] as usize;
+
+            let mut val_buf: Vec<u8> = vec![];
+            for _ in 0..len {
+                cursor += 1;
+                val_buf.push(resp_body[cursor])
             }
-            Err(e) => Err(Error::Io(e)),
-        }?;
+
+            let object = mei::DeviceInfoObject::new(
+                id,
+                match String::from_utf8(val_buf) {
+                    Ok(val) => val,
+                    Err(_) => return Err(Error::ParseInfoError),
+                },
+            );
+            info.push(object)
+        }
         Ok(info)
     }
 }
@@ -414,7 +407,6 @@ impl Client for Transport {
 mod tests {
     use super::*;
     use std::net::{TcpListener, TcpStream};
-    use std::sync::{Arc, Mutex};
     use std::thread;
     #[test]
     fn serialize_header() {
