@@ -217,39 +217,39 @@ impl Transport {
     }
 
     fn write_read_multiple(&mut self, fun: &Function) -> Result<Vec<u8>> {
-        let (write_addr, write_quantity, write_values, read_addr, read_quantity) = match *fun {
-            Function::WriteReadMultipleRegisters(wa, wq, wv, ra, rq) => (wa, wq, wv, ra, rq),
-            _ => return Err(Error::InvalidFunction),
-        };
-        let expected_bytes = 2 * read_quantity as usize;
+        if let Function::WriteReadMultipleRegisters(write_addr, write_quantity, write_values, read_addr, read_quantity) = *fun {
+            let expected_bytes = 2 * read_quantity as usize;
 
-        let header = Header::new(self, MODBUS_HEADER_SIZE as u16 + 10u16 + write_quantity * 2 + 1u16);
-        let mut buff = header.pack()?;
+            let header = Header::new(self, MODBUS_HEADER_SIZE as u16 + 10u16 + write_quantity * 2 + 1u16);
+            let mut buff = header.pack()?;
 
-        buff.write_u8(fun.code())?;
-        buff.write_u16::<BigEndian>(read_addr)?;
-        buff.write_u16::<BigEndian>(read_quantity)?;
-        buff.write_u16::<BigEndian>(write_addr)?;
-        buff.write_u16::<BigEndian>(write_quantity)?;
-        buff.write_u8((write_values.len()) as u8)?;
-        for v in write_values {
-            buff.write_u8(*v)?;
-        }
-
-        match self.stream.write_all(&buff) {
-            Ok(_s) => {
-                let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
-                match self.stream.read(&mut reply) {
-                    Ok(_s) => {
-                        let resp_hd = Header::unpack(&reply[..MODBUS_HEADER_SIZE])?;
-                        Transport::validate_response_header(&header, &resp_hd)?;
-                        Transport::validate_response_code(&buff, &reply)?;
-                        Transport::get_reply_data(&reply, expected_bytes)
-                    }
-                    Err(e) => Err(Error::Io(e)),
-                }
+            buff.write_u8(fun.code())?;
+            buff.write_u16::<BigEndian>(read_addr)?;
+            buff.write_u16::<BigEndian>(read_quantity)?;
+            buff.write_u16::<BigEndian>(write_addr)?;
+            buff.write_u16::<BigEndian>(write_quantity)?;
+            buff.write_u8((write_values.len()) as u8)?;
+            for v in write_values {
+                buff.write_u8(*v)?;
             }
-            Err(e) => Err(Error::Io(e)),
+
+            match self.stream.write_all(&buff) {
+                Ok(_s) => {
+                    let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
+                    match self.stream.read(&mut reply) {
+                        Ok(_s) => {
+                            let resp_hd = Header::unpack(&reply[..MODBUS_HEADER_SIZE])?;
+                            Transport::validate_response_header(&header, &resp_hd)?;
+                            Transport::validate_response_code(&buff, &reply)?;
+                            Transport::get_reply_data(&reply, expected_bytes)
+                        }
+                        Err(e) => Err(Error::Io(e)),
+                    }
+                }
+                Err(e) => Err(Error::Io(e)),
+            }
+        } else {
+            return Err(Error::InvalidFunction);
         }
     }
 
