@@ -52,6 +52,7 @@ enum Function<'a> {
     WriteSingleRegister(Address, Value),
     WriteMultipleCoils(Address, Quantity, &'a [u8]),
     WriteMultipleRegisters(Address, Quantity, &'a [u8]),
+    WriteReadMultipleRegisters(Address, Quantity, &'a [u8], Address, Quantity),
 }
 
 impl<'a> Function<'a> {
@@ -65,6 +66,7 @@ impl<'a> Function<'a> {
             Function::WriteSingleRegister(_, _) => 0x06,
             Function::WriteMultipleCoils(_, _, _) => 0x0f,
             Function::WriteMultipleRegisters(_, _, _) => 0x10,
+            Function::WriteReadMultipleRegisters(_, _, _, _, _) => 0x17,
         }
         // ReadExceptionStatus     = 0x07,
         // ReportSlaveId           = 0x11,
