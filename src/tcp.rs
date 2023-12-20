@@ -249,7 +249,7 @@ impl Transport {
                 Err(e) => Err(Error::Io(e)),
             }
         } else {
-            return Err(Error::InvalidFunction);
+            Err(Error::InvalidFunction)
         }
     }
 
