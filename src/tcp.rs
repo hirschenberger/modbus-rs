@@ -216,6 +216,53 @@ impl Transport {
         self.write(&mut buff)
     }
 
+    fn write_read_multiple(&mut self, fun: &Function) -> Result<Vec<u8>> {
+        if let Function::WriteReadMultipleRegisters(
+            write_addr,
+            write_quantity,
+            write_values,
+            read_addr,
+            read_quantity,
+        ) = *fun
+        {
+            let expected_bytes = 2 * read_quantity as usize;
+
+            let header = Header::new(
+                self,
+                MODBUS_HEADER_SIZE as u16 + 10u16 + write_quantity * 2 + 1u16,
+            );
+            let mut buff = header.pack()?;
+
+            buff.write_u8(fun.code())?;
+            buff.write_u16::<BigEndian>(read_addr)?;
+            buff.write_u16::<BigEndian>(read_quantity)?;
+            buff.write_u16::<BigEndian>(write_addr)?;
+            buff.write_u16::<BigEndian>(write_quantity)?;
+            buff.write_u8((write_values.len()) as u8)?;
+            for v in write_values {
+                buff.write_u8(*v)?;
+            }
+
+            match self.stream.write_all(&buff) {
+                Ok(_s) => {
+                    let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
+                    match self.stream.read(&mut reply) {
+                        Ok(_s) => {
+                            let resp_hd = Header::unpack(&reply[..MODBUS_HEADER_SIZE])?;
+                            Transport::validate_response_header(&header, &resp_hd)?;
+                            Transport::validate_response_code(&buff, &reply)?;
+                            Transport::get_reply_data(&reply, expected_bytes)
+                        }
+                        Err(e) => Err(Error::Io(e)),
+                    }
+                }
+                Err(e) => Err(Error::Io(e)),
+            }
+        } else {
+            Err(Error::InvalidFunction)
+        }
+    }
+
     fn write_multiple(&mut self, fun: &Function) -> Result<()> {
         let (addr, quantity, values) = match *fun {
             Function::WriteMultipleCoils(a, q, v) | Function::WriteMultipleRegisters(a, q, v) => {
@@ -395,6 +442,26 @@ impl Client for Transport {
             values.len() as u16,
             &bytes,
         ))
+    }
+
+    /// Write a multiple 16bit registers starting at address `write_addr` and read starting at address `read_addr`.
+    fn write_read_multiple_registers(
+        &mut self,
+        write_address: u16,
+        write_quantity: u16,
+        write_values: &[u16],
+        read_address: u16,
+        read_quantity: u16,
+    ) -> Result<Vec<u16>> {
+        let write_bytes = binary::unpack_bytes(write_values);
+        let read_bytes = self.write_read_multiple(&Function::WriteReadMultipleRegisters(
+            write_address,
+            write_quantity,
+            &write_bytes,
+            read_address,
+            read_quantity,
+        ))?;
+        binary::pack_bytes(&read_bytes[..])
     }
 
     /// Set the unit identifier.

@@ -17,5 +17,14 @@ pub trait Client {
 
     fn write_multiple_registers(&mut self, address: u16, values: &[u16]) -> Result<()>;
 
+    fn write_read_multiple_registers(
+        &mut self,
+        write_address: u16,
+        write_quantity: u16,
+        write_values: &[u16],
+        read_address: u16,
+        read_quantity: u16,
+    ) -> Result<Vec<u16>>;
+
     fn set_uid(&mut self, uid: u8);
 }

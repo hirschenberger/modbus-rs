@@ -179,14 +179,20 @@ mod modbus_server_tests {
     fn test_write_read_multiple_registers() {
         let (_s, cfg) = start_dummy_server_with_cfg();
         let mut trans = Transport::new_with_cfg("127.0.0.1", cfg).unwrap();
-        // assert!(write_multiple_registers(&mut trans, 0, &[]).is_err());
-        assert!(trans.write_multiple_registers(0, &[23]).is_ok());
-        assert_eq!(trans.read_holding_registers(0, 1).unwrap(), &[23]);
-        assert!(trans.write_multiple_registers(0, &[1, 2, 3]).is_ok());
-        assert_eq!(trans.read_holding_registers(0, 1).unwrap(), &[1]);
-        assert_eq!(trans.read_holding_registers(1, 1).unwrap(), &[2]);
-        assert_eq!(trans.read_holding_registers(2, 1).unwrap(), &[3]);
+        assert!(trans
+            .write_read_multiple_registers(0, 3, &[1, 2, 3], 0, 3)
+            .is_ok());
         assert_eq!(trans.read_holding_registers(0, 3).unwrap(), &[1, 2, 3]);
+        assert_eq!(
+            trans
+                .write_read_multiple_registers(3, 2, &[4, 5], 1, 4)
+                .unwrap(),
+            &[2, 3, 4, 5]
+        );
+        assert_eq!(
+            trans.read_holding_registers(0, 5).unwrap(),
+            &[1, 2, 3, 4, 5]
+        );
     }
 
     #[test]
