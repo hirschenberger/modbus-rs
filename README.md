@@ -1,5 +1,5 @@
 # Rust Modbus
-![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/hirschenberger/modbus/rust.yml)
+[![Rust](https://github.com/hirschenberger/modbus-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/hirschenberger/modbus-rs/actions/workflows/rust.yml)
 [![Crates.io](https://img.shields.io/crates/v/modbus)](https://crates.io/crates/modbus)
 [![docs.rs](https://img.shields.io/docsrs/modbus)](https://docs.rs/modbus/latest/modbus)
 [![Crates.io](https://img.shields.io/crates/d/modbus)](https://crates.io/crates/modbus)
