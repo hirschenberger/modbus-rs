@@ -31,7 +31,7 @@ let res = client.read_coils(0, 5).unwrap();
 
 // res ==  vec![Coil::Off, Coil::On, Coil::Off, Coil::On, Coil::Off];
 ```
-See the [documentation](http://hirschenberger.github.io/modbus-rs/modbus/index.html) for usage examples and further reference and
+See the [documentation](https://docs.rs/modbus/latest/modbus) for usage examples and further reference and
 the [examples](https://github.com/hirschenberger/modbus-rs/tree/master/examples) directory for a commandline client application.
 
 
