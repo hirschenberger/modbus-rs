@@ -1,8 +1,8 @@
 # Rust Modbus
-![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/hirschenberger/modbus/rust.yml)
-![Crates.io](https://img.shields.io/crates/v/modbus)
-![docs.rs](https://img.shields.io/docsrs/modbus) 
-![Crates.io](https://img.shields.io/crates/d/modbus)
+[![Rust](https://github.com/hirschenberger/modbus-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/hirschenberger/modbus-rs/actions/workflows/rust.yml)
+[![Crates.io](https://img.shields.io/crates/v/modbus)](https://crates.io/crates/modbus)
+[![docs.rs](https://img.shields.io/docsrs/modbus)](https://docs.rs/modbus/latest/modbus)
+[![Crates.io](https://img.shields.io/crates/d/modbus)](https://crates.io/crates/modbus)
 [![License](http://img.shields.io/:license-MIT-blue.svg)](http://doge.mit-license.org)
 
 
@@ -31,7 +31,7 @@ let res = client.read_coils(0, 5).unwrap();
 
 // res ==  vec![Coil::Off, Coil::On, Coil::Off, Coil::On, Coil::Off];
 ```
-See the [documentation](http://hirschenberger.github.io/modbus-rs/modbus/index.html) for usage examples and further reference and
+See the [documentation](https://docs.rs/modbus/latest/modbus) for usage examples and further reference and
 the [examples](https://github.com/hirschenberger/modbus-rs/tree/master/examples) directory for a commandline client application.
 
 
