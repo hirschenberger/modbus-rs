@@ -35,9 +35,9 @@ pub mod scoped;
 
 /// The Modbus TCP backend implements a Modbus variant used for communication over TCP/IPv4 networks.
 pub mod tcp;
-pub use client::Client;
-pub use tcp::Config;
-pub use tcp::Transport;
+pub use crate::client::Client;
+pub use crate::tcp::Config;
+pub use crate::tcp::Transport;
 
 type Address = u16;
 type Quantity = u16;
@@ -121,7 +121,7 @@ pub enum Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use Error::*;
+        use crate::Error::*;
 
         match *self {
             Exception(ref code) => write!(f, "modbus exception: {:?}", code),
@@ -137,7 +137,7 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {
     fn description(&self) -> &str {
-        use Error::*;
+        use crate::Error::*;
 
         match *self {
             Exception(_) => "modbus exception",

@@ -55,7 +55,7 @@
 //! # }
 //! ```
 
-use {Client, Coil, Result, Transport};
+use crate::{Client, Coil, Result, Transport};
 
 /// Action to perform when the `ScopedCoil` is dropped.
 pub enum CoilDropFunction {

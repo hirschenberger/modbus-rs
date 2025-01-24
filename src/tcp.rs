@@ -5,10 +5,10 @@ use std::io::{self, Cursor, Read, Write};
 use std::net::{Shutdown, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
-use {binary, Client, Coil, Error, ExceptionCode, Function, Reason, Result};
+use crate::{binary, Client, Coil, Error, ExceptionCode, Function, Reason, Result};
 
 #[cfg(feature = "read-device-info")]
-use mei;
+use crate::mei;
 
 const MODBUS_PROTOCOL_TCP: u16 = 0x0000;
 const MODBUS_TCP_DEFAULT_PORT: u16 = 502;

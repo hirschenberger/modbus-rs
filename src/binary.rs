@@ -1,6 +1,6 @@
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
-use {Coil, Error, Reason, Result};
+use crate::{Coil, Error, Reason, Result};
 
 pub fn unpack_bits(bytes: &[u8], count: u16) -> Vec<Coil> {
     let mut res = Vec::with_capacity(count as usize);
