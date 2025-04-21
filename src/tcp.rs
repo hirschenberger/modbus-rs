@@ -281,38 +281,37 @@ impl Transport {
         }
         self.write(&mut buff)
     }
-
+    
     fn write(&mut self, buff: &mut [u8]) -> Result<()> {
-        if buff.is_empty() {
-            return Err(Error::InvalidData(Reason::SendBufferEmpty));
-        }
-
-        if buff.len() > MODBUS_MAX_PACKET_SIZE {
-            return Err(Error::InvalidData(Reason::SendBufferTooBig));
-        }
-
-        let header = Header::new(self, buff.len() as u16 + 1u16);
-        let head_buff = header.pack()?;
-        {
-            let mut start = Cursor::new(buff.borrow_mut());
-            start.write_all(&head_buff)?;
-        }
-        match self.stream.write_all(buff) {
-            Ok(_s) => {
-                let reply = &mut [0; 12];
-                match self.stream.read(reply) {
-                    Ok(_s) => {
-                        let resp_hd = Header::unpack(reply)?;
-                        Transport::validate_response_header(&header, &resp_hd)?;
-                        Transport::validate_response_code(buff, reply)
-                    }
-                    Err(e) => Err(Error::Io(e)),
-                }
-            }
-            Err(e) => Err(Error::Io(e)),
-        }
+    if buff.is_empty() {
+        return Err(Error::InvalidData(Reason::SendBufferEmpty));
     }
 
+    if buff.len() > MODBUS_MAX_PACKET_SIZE {
+        return Err(Error::InvalidData(Reason::SendBufferTooBig));
+    }
+
+    let header = Header::new(self, (buff.len() + 1) as u16); // fixed header size
+    let head_buff = header.pack()?;
+
+    // Write header to buffer
+    self.stream.write_all(&head_buff)?;
+
+    // Write data buffer
+    self.stream.write_all(buff)?;
+
+    // Reading the response
+    let mut reply = [0; 12]; // fixed response buffer
+    match self.stream.read(&mut reply) {
+        Ok(_) => {
+            let resp_hd = Header::unpack(&reply)?;
+            Transport::validate_response_header(&header, &resp_hd)?;
+            Transport::validate_response_code(buff, &reply)
+        }
+        Err(e) => Err(Error::Io(e)),
+    }
+}
+    
     pub fn close(&mut self) -> Result<()> {
         self.stream.shutdown(Shutdown::Both).map_err(Error::Io)
     }
