@@ -5,7 +5,7 @@ use std::io::{self, Cursor, Read, Write};
 use std::net::{Shutdown, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
-use crate::{binary, Client, Coil, Error, ExceptionCode, Function, Reason, Result};
+use crate::{Client, Coil, Error, ExceptionCode, Function, Reason, Result, binary};
 
 #[cfg(feature = "read-device-info")]
 use crate::mei;
@@ -338,11 +338,7 @@ impl Transport {
         let mut buff = vec![0; MODBUS_HEADER_SIZE]; // Header gets filled in later
         buff.write_u8(0x2B)?; // Modbus Encapsulated Interface (Function code 43)
         buff.write_u8(0x0E)?; // MEI Type 14 (Read Device Identification)
-        buff.write_u8(match obj_category {
-            mei::DeviceInfoCategory::Basic => 0x01,
-            mei::DeviceInfoCategory::Regular => 0x02,
-            mei::DeviceInfoCategory::Extended => 0x03,
-        })?;
+        buff.write_u8(obj_category as u8)?;
         buff.write_u8(0x00)?; // Object ID
 
         let header = Header::new(self, buff.len() as u16 + 1u16);
@@ -355,7 +351,7 @@ impl Transport {
         self.stream.write_all(&buff)?;
         let reply = &mut [0; MODBUS_MAX_PACKET_SIZE];
 
-        self.stream.read(reply)?;
+        self.stream.read_exact(reply)?;
         let resp_hd = Header::unpack(reply)?;
         Transport::validate_response_header(&header, &resp_hd)?;
         Transport::validate_response_code(&buff, reply)?;
@@ -484,9 +480,9 @@ mod tests {
             uid: 68,
         };
         let serialized = header.pack().unwrap();
-        let deserialized = Header::unpack(&vec![50, 16, 15, 90, 0, 99, 68]).unwrap();
+        let deserialized = Header::unpack(&[50, 16, 15, 90, 0, 99, 68]).unwrap();
         let re_deserialized = Header::unpack(&serialized).unwrap();
-        assert_eq!(serialized, vec![50, 16, 15, 90, 0, 99, 68]);
+        assert_eq!(serialized, &[50, 16, 15, 90, 0, 99, 68]);
         assert_eq!(deserialized, header);
         assert_eq!(re_deserialized, header);
     }
@@ -502,14 +498,17 @@ mod tests {
             STARTED.store(true, Ordering::Relaxed);
             listener
                 .accept()
-                .and_then(|_| {
-                    while !CLOSED.load(Ordering::Relaxed) {}
-                    Ok(())
+                .map(|_| {
+                    while !CLOSED.load(Ordering::Relaxed) {
+                        std::hint::spin_loop()
+                    }
                 })
                 .unwrap();
         });
 
-        while !STARTED.load(Ordering::Relaxed) {}
+        while !STARTED.load(Ordering::Relaxed) {
+            std::hint::spin_loop()
+        }
 
         let new_stream = TcpStream::connect("localhost:34254").unwrap();
         let mut transport = Transport {

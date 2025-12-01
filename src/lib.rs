@@ -204,11 +204,7 @@ impl FromStr for Coil {
 
 impl From<bool> for Coil {
     fn from(b: bool) -> Coil {
-        if b {
-            Coil::On
-        } else {
-            Coil::Off
-        }
+        if b { Coil::On } else { Coil::Off }
     }
 }
 
@@ -226,6 +222,8 @@ impl std::ops::Not for Coil {
 #[cfg(feature = "read-device-info")]
 /// Types specific to the special ReadDeviceInfo function
 pub mod mei {
+    use std::fmt::{Display, Error, Formatter};
+
     /**
      * Describes object standard conformity
      *
@@ -235,9 +233,9 @@ pub mod mei {
      */
     #[derive(Copy, Clone, Debug)]
     pub enum DeviceInfoCategory {
-        Basic,
-        Regular,
-        Extended,
+        Basic = 0x1,
+        Regular = 0x2,
+        Extended = 0x3,
     }
 
     /**
@@ -263,11 +261,14 @@ pub mod mei {
         pub fn new(obj_id: u8, value: String) -> Self {
             Self { id: obj_id, value }
         }
-        pub fn to_string(&self) -> String {
-            self.value.clone()
-        }
         pub fn id(&self) -> u8 {
             self.id
+        }
+    }
+
+    impl Display for DeviceInfoObject {
+        fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+            f.write_str(&self.value)
         }
     }
 }
