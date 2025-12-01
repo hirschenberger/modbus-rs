@@ -128,7 +128,7 @@ impl Transport {
     }
 
     fn read(&mut self, fun: &Function) -> Result<Vec<u8>> {
-        let packed_size = |v: u16| v / 8 + if v % 8 > 0 { 1 } else { 0 };
+        let packed_size = |v: u16| v / 8 + if !v.is_multiple_of(8) { 1 } else { 0 };
         let (addr, count, expected_bytes) = match *fun {
             Function::ReadCoils(a, c) | Function::ReadDiscreteInputs(a, c) => {
                 (a, c, packed_size(c) as usize)

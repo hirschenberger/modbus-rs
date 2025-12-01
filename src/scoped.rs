@@ -114,7 +114,7 @@ impl<'a> ScopedCoil<'a> {
         transport: &mut Transport,
         address: u16,
         fun: CoilDropFunction,
-    ) -> Result<ScopedCoil> {
+    ) -> Result<ScopedCoil<'_>> {
         Ok(ScopedCoil {
             address,
             fun,
