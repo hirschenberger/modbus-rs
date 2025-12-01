@@ -36,6 +36,6 @@ the [examples](https://github.com/hirschenberger/modbus-rs/tree/master/examples)
 
 
 ## License
-Copyright © 2015-2025 Falco Hirschenberger
+Copyright © 2015-2026 Falco Hirschenberger
 
 Distributed under the [MIT License](LICENSE).
