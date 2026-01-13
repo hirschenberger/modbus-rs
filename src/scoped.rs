@@ -19,10 +19,10 @@
 //! # cfg.tcp_port = port;
 //! let mut client = tcp::Transport::new_with_cfg("127.0.0.1", cfg).unwrap();
 //! {
-//!    let mut auto = ScopedCoil::new(&mut client, 10, CoilDropFunction::On).unwrap();
-//!    assert_eq!(auto.mut_transport().read_coils(10, 1).unwrap(), vec![Coil::Off]);
+//!    let mut auto = ScopedCoil::new(&mut client, "10", CoilDropFunction::On).unwrap();
+//!    assert_eq!(auto.mut_transport().read_coils("10", 1).unwrap(), vec![Coil::Off]);
 //! }
-//! assert_eq!(client.read_coils(10, 1).unwrap(), vec![Coil::On]);
+//! assert_eq!(client.read_coils("10", 1).unwrap(), vec![Coil::On]);
 //! # }
 //! # }
 //! ```
@@ -44,13 +44,13 @@
 //! let mut cfg = tcp::Config::default();
 //! # cfg.tcp_port = port;
 //! let mut client = tcp::Transport::new_with_cfg("127.0.0.1", cfg).unwrap();
-//! client.write_single_register(10, 1);
+//! client.write_single_register("10", 1);
 //! {
 //!     let fun = |v| v + 5;
-//!     let mut auto = ScopedRegister::new(&mut client, 10, RegisterDropFunction::Fun(&fun)).unwrap();
-//!     assert_eq!(auto.mut_transport().read_holding_registers(10, 1).unwrap(), vec![1]);
+//!     let mut auto = ScopedRegister::new(&mut client, "10", RegisterDropFunction::Fun(&fun)).unwrap();
+//!     assert_eq!(auto.mut_transport().read_holding_registers("10", 1).unwrap(), vec![1]);
 //! }
-//! assert_eq!(client.read_holding_registers(10, 1).unwrap(), vec![6]);
+//! assert_eq!(client.read_holding_registers("10", 1).unwrap(), vec![6]);
 //! # }
 //! # }
 //! ```
@@ -84,7 +84,7 @@ pub enum RegisterDropFunction<'a> {
 /// Auto object which modifies it's coil value depending on a given modification function if it
 /// goes out of scope.
 pub struct ScopedCoil<'a> {
-    address: u16,
+    address: &'a str,
     fun: CoilDropFunction,
     transport: &'a mut Transport,
 }
@@ -111,10 +111,10 @@ impl<'a> ScopedCoil<'a> {
     /// Create a new `ScopedCoil` object with `address` and drop function when the object goes
     /// out of scope.
     pub fn new(
-        transport: &mut Transport,
-        address: u16,
+        transport: &'a mut Transport,
+        address: &'a str,
         fun: CoilDropFunction,
-    ) -> Result<ScopedCoil<'_>> {
+    ) -> Result<ScopedCoil<'a>> {
         Ok(ScopedCoil {
             address,
             fun,
@@ -130,7 +130,7 @@ impl<'a> ScopedCoil<'a> {
 /// Auto object which modifies it's register value depending on a given modification function if it
 /// goes out of scope.
 pub struct ScopedRegister<'a> {
-    address: u16,
+    address: &'a str,
     fun: RegisterDropFunction<'a>,
     transport: &'a mut Transport,
 }
@@ -162,7 +162,7 @@ impl<'a> ScopedRegister<'a> {
     /// out of scope.
     pub fn new<'b>(
         transport: &'b mut Transport,
-        address: u16,
+        address: &'b str,
         fun: RegisterDropFunction<'b>,
     ) -> Result<ScopedRegister<'b>> {
         Ok(ScopedRegister {

@@ -41,12 +41,12 @@ fn main() {
 
     if let Some(args) = matches.values_of("read-coils") {
         let args: Vec<&str> = args.collect();
-        let addr: u16 = args[0].parse().expect(matches.usage());
+        let addr: &str = args[0];
         let qtty: u16 = args[1].parse().expect(matches.usage());
         println!("{:?}", client.read_coils(addr, qtty).expect("IO Error"));
     } else if let Some(args) = matches.values_of("read-discrete-inputs") {
         let args: Vec<&str> = args.collect();
-        let addr: u16 = args[0].parse().expect(matches.usage());
+        let addr: &str = args[0];
         let qtty: u16 = args[1].parse().expect(matches.usage());
         println!(
             "{:?}",
@@ -54,12 +54,12 @@ fn main() {
         );
     } else if let Some(args) = matches.values_of("write-single-coil") {
         let args: Vec<&str> = args.collect();
-        let addr: u16 = args[0].parse().expect(matches.usage());
+        let addr: &str = args[0];
         let value: Coil = args[1].parse().expect(matches.usage());
         client.write_single_coil(addr, value).expect("IO Error");
     } else if let Some(args) = matches.values_of("write-multiple-coils") {
         let args: Vec<&str> = args.collect();
-        let addr: u16 = args[0].parse().expect(matches.usage());
+        let addr: &str = args[0];
         let values: Vec<Coil> = args[1]
             .split(',')
             .map(|s| s.trim().parse().expect(matches.usage()))
@@ -69,7 +69,7 @@ fn main() {
             .expect("IO Error");
     } else if let Some(args) = matches.values_of("read-holding-registers") {
         let args: Vec<&str> = args.collect();
-        let addr: u16 = args[0].parse().expect(matches.usage());
+        let addr: &str = args[0];
         let qtty: u16 = args[1].parse().expect(matches.usage());
         println!(
             "{:?}",
@@ -77,12 +77,12 @@ fn main() {
         );
     } else if let Some(args) = matches.values_of("write-single-register") {
         let args: Vec<&str> = args.collect();
-        let addr: u16 = args[0].parse().expect(matches.usage());
+        let addr: &str = args[0];
         let value: u16 = args[1].parse().expect(matches.usage());
         client.write_single_register(addr, value).expect("IO Error");
     } else if let Some(args) = matches.values_of("write-multiple-registers") {
         let args: Vec<&str> = args.collect();
-        let addr: u16 = args[0].parse().expect(matches.usage());
+        let addr: &str = args[0];
         let values: Vec<u16> = args[1]
             .split(',')
             .map(|s| s.trim().parse().expect(matches.usage()))

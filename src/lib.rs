@@ -15,7 +15,7 @@
 //! let mut cfg = tcp::Config::default();
 //! # cfg.tcp_port = port;
 //! let mut client = tcp::Transport::new_with_cfg("127.0.0.1", cfg).unwrap();
-//! assert!(client.write_single_coil(0, Coil::On).is_ok());
+//! assert!(client.write_single_coil("0", Coil::On).is_ok());
 //! # }
 //! # }
 //! ```
@@ -39,20 +39,20 @@ pub use crate::client::Client;
 pub use crate::tcp::Config;
 pub use crate::tcp::Transport;
 
-type Address = u16;
+type Address<'a> = &'a str;
 type Quantity = u16;
 type Value = u16;
 
 enum Function<'a> {
-    ReadCoils(Address, Quantity),
-    ReadDiscreteInputs(Address, Quantity),
-    ReadHoldingRegisters(Address, Quantity),
-    ReadInputRegisters(Address, Quantity),
-    WriteSingleCoil(Address, Value),
-    WriteSingleRegister(Address, Value),
-    WriteMultipleCoils(Address, Quantity, &'a [u8]),
-    WriteMultipleRegisters(Address, Quantity, &'a [u8]),
-    WriteReadMultipleRegisters(Address, Quantity, &'a [u8], Address, Quantity),
+    ReadCoils(Address<'a>, Quantity),
+    ReadDiscreteInputs(Address<'a>, Quantity),
+    ReadHoldingRegisters(Address<'a>, Quantity),
+    ReadInputRegisters(Address<'a>, Quantity),
+    WriteSingleCoil(Address<'a>, Value),
+    WriteSingleRegister(Address<'a>, Value),
+    WriteMultipleCoils(Address<'a>, Quantity, &'a [u8]),
+    WriteMultipleRegisters(Address<'a>, Quantity, &'a [u8]),
+    WriteReadMultipleRegisters(Address<'a>, Quantity, &'a [u8], Address<'a>, Quantity),
 }
 
 impl<'a> Function<'a> {

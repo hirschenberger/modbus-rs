@@ -129,29 +129,32 @@ impl Transport {
 
     fn read(&mut self, fun: &Function) -> Result<Vec<u8>> {
         let packed_size = |v: u16| v / 8 + if !v.is_multiple_of(8) { 1 } else { 0 };
-        let (addr, count, expected_bytes) = match *fun {
+        let (addr, count, expected_bytes) = match fun {
             Function::ReadCoils(a, c) | Function::ReadDiscreteInputs(a, c) => {
-                (a, c, packed_size(c) as usize)
+                (a, c, packed_size(*c) as usize)
             }
             Function::ReadHoldingRegisters(a, c) | Function::ReadInputRegisters(a, c) => {
-                (a, c, 2 * c as usize)
+                (a, c, 2 * (*c) as usize)
             }
             _ => return Err(Error::InvalidFunction),
         };
 
-        if count < 1 {
+        if *count < 1 {
             return Err(Error::InvalidData(Reason::RecvBufferEmpty));
         }
 
-        if count as usize > MODBUS_MAX_PACKET_SIZE {
+        if *count as usize > MODBUS_MAX_PACKET_SIZE {
             return Err(Error::InvalidData(Reason::UnexpectedReplySize));
         }
 
         let header = Header::new(self, MODBUS_HEADER_SIZE as u16 + 6u16);
         let mut buff = header.pack()?;
         buff.write_u8(fun.code())?;
-        buff.write_u16::<BigEndian>(addr)?;
-        buff.write_u16::<BigEndian>(count)?;
+        let addr_parsed: u16 = addr
+            .parse()
+            .map_err(|_| Error::InvalidData(Reason::DecodingError))?;
+        buff.write_u16::<BigEndian>(addr_parsed)?;
+        buff.write_u16::<BigEndian>(*count)?;
 
         match self.stream.write_all(&buff) {
             Ok(_s) => {
@@ -204,15 +207,18 @@ impl Transport {
     }
 
     fn write_single(&mut self, fun: &Function) -> Result<()> {
-        let (addr, value) = match *fun {
+        let (addr, value) = match fun {
             Function::WriteSingleCoil(a, v) | Function::WriteSingleRegister(a, v) => (a, v),
             _ => return Err(Error::InvalidFunction),
         };
 
         let mut buff = vec![0; MODBUS_HEADER_SIZE]; // Header gets filled in later
         buff.write_u8(fun.code())?;
-        buff.write_u16::<BigEndian>(addr)?;
-        buff.write_u16::<BigEndian>(value)?;
+        let addr_parsed: u16 = addr
+            .parse()
+            .map_err(|_| Error::InvalidData(Reason::DecodingError))?;
+        buff.write_u16::<BigEndian>(addr_parsed)?;
+        buff.write_u16::<BigEndian>(*value)?;
         self.write(&mut buff)
     }
 
@@ -223,9 +229,9 @@ impl Transport {
             write_values,
             read_addr,
             read_quantity,
-        ) = *fun
+        ) = fun
         {
-            let expected_bytes = 2 * read_quantity as usize;
+            let expected_bytes = 2 * (*read_quantity) as usize;
 
             let header = Header::new(
                 self,
@@ -234,12 +240,18 @@ impl Transport {
             let mut buff = header.pack()?;
 
             buff.write_u8(fun.code())?;
-            buff.write_u16::<BigEndian>(read_addr)?;
-            buff.write_u16::<BigEndian>(read_quantity)?;
-            buff.write_u16::<BigEndian>(write_addr)?;
-            buff.write_u16::<BigEndian>(write_quantity)?;
+            let read_addr_parsed: u16 = read_addr
+                .parse()
+                .map_err(|_| Error::InvalidData(Reason::DecodingError))?;
+            buff.write_u16::<BigEndian>(read_addr_parsed)?;
+            buff.write_u16::<BigEndian>(*read_quantity)?;
+            let write_addr_parsed: u16 = write_addr
+                .parse()
+                .map_err(|_| Error::InvalidData(Reason::DecodingError))?;
+            buff.write_u16::<BigEndian>(write_addr_parsed)?;
+            buff.write_u16::<BigEndian>(*write_quantity)?;
             buff.write_u8((write_values.len()) as u8)?;
-            for v in write_values {
+            for v in *write_values {
                 buff.write_u8(*v)?;
             }
 
@@ -264,7 +276,7 @@ impl Transport {
     }
 
     fn write_multiple(&mut self, fun: &Function) -> Result<()> {
-        let (addr, quantity, values) = match *fun {
+        let (addr, quantity, values) = match fun {
             Function::WriteMultipleCoils(a, q, v) | Function::WriteMultipleRegisters(a, q, v) => {
                 (a, q, v)
             }
@@ -273,10 +285,13 @@ impl Transport {
 
         let mut buff = vec![0; MODBUS_HEADER_SIZE]; // Header gets filled in later
         buff.write_u8(fun.code())?;
-        buff.write_u16::<BigEndian>(addr)?;
-        buff.write_u16::<BigEndian>(quantity)?;
+        let addr_parsed: u16 = addr
+            .parse()
+            .map_err(|_| Error::InvalidData(Reason::DecodingError))?;
+        buff.write_u16::<BigEndian>(addr_parsed)?;
+        buff.write_u16::<BigEndian>(*quantity)?;
         buff.write_u8(values.len() as u8)?;
-        for v in values {
+        for v in *values {
             buff.write_u8(*v)?;
         }
         self.write(&mut buff)
@@ -387,41 +402,41 @@ impl Transport {
 
 impl Client for Transport {
     /// Read `count` bits starting at address `addr`.
-    fn read_coils(&mut self, addr: u16, count: u16) -> Result<Vec<Coil>> {
+    fn read_coils(&mut self, addr: &str, count: u16) -> Result<Vec<Coil>> {
         let bytes = self.read(&Function::ReadCoils(addr, count))?;
         Ok(binary::unpack_bits(&bytes, count))
     }
 
     /// Read `count` input bits starting at address `addr`.
-    fn read_discrete_inputs(&mut self, addr: u16, count: u16) -> Result<Vec<Coil>> {
+    fn read_discrete_inputs(&mut self, addr: &str, count: u16) -> Result<Vec<Coil>> {
         let bytes = self.read(&Function::ReadDiscreteInputs(addr, count))?;
         Ok(binary::unpack_bits(&bytes, count))
     }
 
     /// Read `count` 16bit registers starting at address `addr`.
-    fn read_holding_registers(&mut self, addr: u16, count: u16) -> Result<Vec<u16>> {
+    fn read_holding_registers(&mut self, addr: &str, count: u16) -> Result<Vec<u16>> {
         let bytes = self.read(&Function::ReadHoldingRegisters(addr, count))?;
         binary::pack_bytes(&bytes[..])
     }
 
     /// Read `count` 16bit input registers starting at address `addr`.
-    fn read_input_registers(&mut self, addr: u16, count: u16) -> Result<Vec<u16>> {
+    fn read_input_registers(&mut self, addr: &str, count: u16) -> Result<Vec<u16>> {
         let bytes = self.read(&Function::ReadInputRegisters(addr, count))?;
         binary::pack_bytes(&bytes[..])
     }
 
     /// Write a single coil (bit) to address `addr`.
-    fn write_single_coil(&mut self, addr: u16, value: Coil) -> Result<()> {
+    fn write_single_coil(&mut self, addr: &str, value: Coil) -> Result<()> {
         self.write_single(&Function::WriteSingleCoil(addr, value.code()))
     }
 
     /// Write a single 16bit register to address `addr`.
-    fn write_single_register(&mut self, addr: u16, value: u16) -> Result<()> {
+    fn write_single_register(&mut self, addr: &str, value: u16) -> Result<()> {
         self.write_single(&Function::WriteSingleRegister(addr, value))
     }
 
     /// Write a multiple coils (bits) starting at address `addr`.
-    fn write_multiple_coils(&mut self, addr: u16, values: &[Coil]) -> Result<()> {
+    fn write_multiple_coils(&mut self, addr: &str, values: &[Coil]) -> Result<()> {
         let bytes = binary::pack_bits(values);
         self.write_multiple(&Function::WriteMultipleCoils(
             addr,
@@ -431,7 +446,7 @@ impl Client for Transport {
     }
 
     /// Write a multiple 16bit registers starting at address `addr`.
-    fn write_multiple_registers(&mut self, addr: u16, values: &[u16]) -> Result<()> {
+    fn write_multiple_registers(&mut self, addr: &str, values: &[u16]) -> Result<()> {
         let bytes = binary::unpack_bytes(values);
         self.write_multiple(&Function::WriteMultipleRegisters(
             addr,
@@ -443,10 +458,10 @@ impl Client for Transport {
     /// Write a multiple 16bit registers starting at address `write_addr` and read starting at address `read_addr`.
     fn write_read_multiple_registers(
         &mut self,
-        write_address: u16,
+        write_address: &str,
         write_quantity: u16,
         write_values: &[u16],
-        read_address: u16,
+        read_address: &str,
         read_quantity: u16,
     ) -> Result<Vec<u16>> {
         let write_bytes = binary::unpack_bytes(write_values);
