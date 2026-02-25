@@ -156,7 +156,7 @@ impl Transport {
         match self.stream.write_all(&buff) {
             Ok(_s) => {
                 let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
-                match self.stream.read(&mut reply) {
+                match self.stream.read_exact(&mut reply) {
                     Ok(_s) => {
                         let resp_hd = Header::unpack(&reply[..MODBUS_HEADER_SIZE])?;
                         Transport::validate_response_header(&header, &resp_hd)?;
@@ -246,7 +246,7 @@ impl Transport {
             match self.stream.write_all(&buff) {
                 Ok(_s) => {
                     let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
-                    match self.stream.read(&mut reply) {
+                    match self.stream.read_exact(&mut reply) {
                         Ok(_s) => {
                             let resp_hd = Header::unpack(&reply[..MODBUS_HEADER_SIZE])?;
                             Transport::validate_response_header(&header, &resp_hd)?;
@@ -300,7 +300,7 @@ impl Transport {
         match self.stream.write_all(buff) {
             Ok(_s) => {
                 let reply = &mut [0; 12];
-                match self.stream.read(reply) {
+                match self.stream.read_exact(reply) {
                     Ok(_s) => {
                         let resp_hd = Header::unpack(reply)?;
                         Transport::validate_response_header(&header, &resp_hd)?;
