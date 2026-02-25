@@ -156,22 +156,14 @@ impl Transport {
         match self.stream.write_all(&buff) {
             Ok(_s) => {
                 let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
-                loop {
-                    match self.stream.read(&mut reply) {
-                        Ok(_s) => {
-                            let resp_hd = Header::unpack(&reply[..MODBUS_HEADER_SIZE])?;
-                            if header.tid == resp_hd.tid.wrapping_add(1) {
-                                // This is a response to the previous request, so ignore it and wait for the next one.
-                                continue;
-                            }
-                            Transport::validate_response_header(&header, &resp_hd)?;
-                            Transport::validate_response_code(&buff, &reply)?;
-                            return Transport::get_reply_data(&reply, expected_bytes)
-                        }
-                        Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {},
-                        Err(e) => return Err(Error::Io(e)),
+                match self.stream.read_exact(&mut reply) {
+                    Ok(_s) => {
+                        let resp_hd = Header::unpack(&reply[..MODBUS_HEADER_SIZE])?;
+                        Transport::validate_response_header(&header, &resp_hd)?;
+                        Transport::validate_response_code(&buff, &reply)?;
+                        Transport::get_reply_data(&reply, expected_bytes)
                     }
-
+                    Err(e) => Err(Error::Io(e)),
                 }
             }
             Err(e) => Err(Error::Io(e)),
@@ -254,20 +246,14 @@ impl Transport {
             match self.stream.write_all(&buff) {
                 Ok(_s) => {
                     let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
-                    loop {
-                        match self.stream.read(&mut reply) {
-                            Ok(_s) => {
-                                let resp_hd = Header::unpack(&reply[..MODBUS_HEADER_SIZE])?;
-                                if header.tid == resp_hd.tid.wrapping_add(1) {
-                                    // This is a response to the previous request, so ignore it and wait for the next one.
-                                    continue;
-                                }
-                                Transport::validate_response_header(&header, &resp_hd)?;
-                                Transport::validate_response_code(&buff, &reply)?;
-                                return Transport::get_reply_data(&reply, expected_bytes)
-                            }
-                            Err(e) => return Err(Error::Io(e)),
+                    match self.stream.read_exact(&mut reply) {
+                        Ok(_s) => {
+                            let resp_hd = Header::unpack(&reply[..MODBUS_HEADER_SIZE])?;
+                            Transport::validate_response_header(&header, &resp_hd)?;
+                            Transport::validate_response_code(&buff, &reply)?;
+                            Transport::get_reply_data(&reply, expected_bytes)
                         }
+                        Err(e) => Err(Error::Io(e)),
                     }
                 }
                 Err(e) => Err(Error::Io(e)),
@@ -314,21 +300,13 @@ impl Transport {
         match self.stream.write_all(buff) {
             Ok(_s) => {
                 let reply = &mut [0; 12];
-                loop {
-                    match self.stream.read(reply) {
-                        Ok(_s) => {
-                            let resp_hd = Header::unpack(reply)?;
-                            if header.tid == resp_hd.tid.wrapping_add(1) {
-                                // This is a response to the previous request, so ignore it and wait for the next one.
-                                continue;
-                            }
-                            Transport::validate_response_header(&header, &resp_hd)?;
-                            return Transport::validate_response_code(buff, reply)
-                        }
-                        Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {},
-                        Err(e) => return Err(Error::Io(e)),
+                match self.stream.read_exact(reply) {
+                    Ok(_s) => {
+                        let resp_hd = Header::unpack(reply)?;
+                        Transport::validate_response_header(&header, &resp_hd)?;
+                        Transport::validate_response_code(buff, reply)
                     }
-
+                    Err(e) => Err(Error::Io(e)),
                 }
             }
             Err(e) => Err(Error::Io(e)),
