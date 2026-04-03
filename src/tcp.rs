@@ -153,21 +153,34 @@ impl Transport {
         buff.write_u16::<BigEndian>(addr)?;
         buff.write_u16::<BigEndian>(count)?;
 
-        match self.stream.write_all(&buff) {
-            Ok(_s) => {
-                let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
-                match self.stream.read_exact(&mut reply) {
-                    Ok(_s) => {
-                        let resp_hd = Header::unpack(&reply[..MODBUS_HEADER_SIZE])?;
-                        Transport::validate_response_header(&header, &resp_hd)?;
-                        Transport::validate_response_code(&buff, &reply)?;
-                        Transport::get_reply_data(&reply, expected_bytes)
+        self.stream.write_all(&buff)?;
+        let mut latest_err = None;
+        // Some devices have caches for old values, so discard invalid TIDs and retry read
+        for _ in 0..2 {
+            let mut reply = vec![0; MODBUS_HEADER_SIZE + expected_bytes + 2];
+            match self.stream.read_exact(&mut reply) {
+                Ok(_) => {
+                    let resp_hd = Header::unpack(&reply[..MODBUS_HEADER_SIZE])?;
+                    match Transport::validate_response_header(&header, &resp_hd) {
+                        Ok(_) => {
+                            Transport::validate_response_code(&buff, &reply)?;
+                            return Transport::get_reply_data(&reply, expected_bytes);
+                        }
+                        Err(e) => {
+                            // Discard invalid TIDs and retry read
+                            latest_err = Some(e);
+                        }
                     }
-                    Err(e) => Err(Error::Io(e)),
                 }
-            }
-            Err(e) => Err(Error::Io(e)),
+                Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => {
+                    return Err(latest_err.map_or_else(|| Error::Io(e), |e| e.into()));
+                }
+                Err(e) => {
+                    return Err(Error::Io(e));
+                }
+            };
         }
+        Err(latest_err.unwrap().into())
     }
 
     fn validate_response_header(req: &Header, resp: &Header) -> Result<()> {
@@ -537,5 +550,52 @@ mod tests {
 
         CLOSED.store(true, Ordering::Relaxed);
         jh.join().unwrap();
+    }
+    #[test]
+    fn read_retries_on_invalid_tid() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut req = [0u8; 12];
+            stream.read_exact(&mut req).unwrap();
+
+            let req_header = Header::unpack(&req[..MODBUS_HEADER_SIZE]).unwrap();
+            let expected_bytes = 1u8;
+            let len = 1u16 + 1u16 + 1u16 + expected_bytes as u16;
+
+            let make_reply = |tid: u16, data: u8| {
+                let header = Header {
+                    tid,
+                    pid: MODBUS_PROTOCOL_TCP,
+                    len,
+                    uid: req_header.uid,
+                };
+                let mut reply = header.pack().unwrap();
+                reply.push(req[7]);
+                reply.push(expected_bytes);
+                reply.push(data);
+                reply
+            };
+
+            let old_reply = make_reply(req_header.tid.wrapping_sub(1), 0x00);
+            stream.write_all(&old_reply).unwrap();
+
+            let valid_reply = make_reply(req_header.tid, 0x01);
+            stream.write_all(&valid_reply).unwrap();
+        });
+
+        let stream = TcpStream::connect(addr).unwrap();
+        let mut transport = Transport {
+            tid: 0,
+            uid: 1,
+            stream,
+        };
+
+        let bytes = transport.read(&Function::ReadCoils(0, 1)).unwrap();
+        assert_eq!(bytes, vec![0x01]);
+
+        server.join().unwrap();
     }
 }
